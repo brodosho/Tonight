@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tonight">
+<meta name="theme-color" content="#0F1119">
+<title>Tonight</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0F1119;
+  --panel:#181B26;
+  --panel-2:#1F2331;
+  --line:#2B3040;
+  --text:#EAE7DF;
+  --muted:#868DA3;
+  --signal:#F0B429;
+  --signal-dim:#7A5D16;
+  --live:#E0553D;
+  --ok:#5FBF8F;
+  --tap:12px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;background:var(--ink)}
+body{
+  font:400 16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  color:var(--text);
+  overscroll-behavior-y:none;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.cond{font-family:"Archivo Narrow",-apple-system,system-ui,sans-serif;font-weight:600;letter-spacing:.01em}
+button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer}
+input{font:inherit}
+:focus-visible{outline:2px solid var(--signal);outline-offset:2px;border-radius:4px}
+
+#app{min-height:100%;display:flex;flex-direction:column}
+#view{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(var(--safe-t) + 14px) 16px 96px}
+
+/* ---------- tab bar ---------- */
+#tabs{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  display:flex;background:rgba(15,17,25,.92);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-top:1px solid var(--line);
+  padding-bottom:var(--safe-b);
+}
+#tabs button{flex:1;padding:11px 4px 9px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:11px}
+#tabs button .ic{width:22px;height:22px;display:block}
+#tabs button[aria-current="page"]{color:var(--signal)}
+
+/* ---------- roll screen ---------- */
+.tally{
+  width:100%;aspect-ratio:1/1;max-width:280px;margin:8vh auto 0;
+  border-radius:50%;position:relative;display:grid;place-items:center;
+  border:1px solid var(--line);background:radial-gradient(circle at 50% 42%,#1C2130,#12141D 70%);
+}
+.tally::before{
+  content:"";position:absolute;inset:14px;border-radius:50%;
+  border:1px solid rgba(240,180,41,.14);
+}
+.tally.live{border-color:var(--signal-dim);animation:pulse 1.05s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(240,180,41,0)}50%{box-shadow:0 0 44px 2px rgba(240,180,41,.22)}}
+.tally-word{font-family:"Archivo Narrow",sans-serif;font-size:30px;font-weight:700;letter-spacing:.02em}
+.tally-sub{color:var(--muted);font-size:13px;margin-top:6px;text-align:center;padding:0 24px;min-height:20px}
+.reel{font-family:"Archivo Narrow",sans-serif;font-size:17px;color:var(--signal);text-align:center;padding:0 22px;line-height:1.25}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin:18px 0}
+.slug{font-family:"Archivo Narrow",sans-serif;font-size:14px;color:var(--signal);letter-spacing:.06em}
+.ep-show{font-family:"Archivo Narrow",sans-serif;font-size:26px;line-height:1.12;margin:6px 0 2px}
+.ep-title{font-size:17px;font-weight:600;margin:8px 0 0}
+.ep-blurb{color:var(--muted);font-size:14.5px;margin:9px 0 0}
+.meta{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12.5px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.meta b{color:var(--text);font-weight:600}
+
+.btn{
+  display:block;width:100%;text-align:center;padding:16px;border-radius:14px;
+  background:var(--signal);color:#171308;font-weight:700;font-size:17px;
+}
+.btn:active{transform:scale(.985)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text);font-weight:600}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.btn-row{display:flex;gap:10px;margin-top:12px}
+.btn-row .btn{margin:0}
+
+/* ---------- rating tiers ---------- */
+.tier{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  padding:13px 15px;border-radius:12px;background:var(--panel-2);
+  border:1px solid var(--line);margin-bottom:9px;
+}
+.tier:active{border-color:var(--signal)}
+.tier .dot{width:11px;height:11px;border-radius:50%;flex:none}
+.tier .lbl{font-weight:600;font-size:15.5px}
+.tier .hint{color:var(--muted);font-size:12.5px;margin-top:1px}
+.tier.sel{border-color:var(--signal);background:#241F12}
+
+/* ---------- library ---------- */
+.searchwrap{position:relative;margin-bottom:14px}
+.searchwrap input{
+  width:100%;padding:13px 15px 13px 42px;border-radius:12px;
+  background:var(--panel);border:1px solid var(--line);color:var(--text);
+}
+.searchwrap svg{position:absolute;left:14px;top:14px;width:18px;height:18px;color:var(--muted)}
+.sec{font-family:"Archivo Narrow",sans-serif;font-size:13px;color:var(--muted);margin:20px 0 9px;letter-spacing:.05em}
+.sec:first-child{margin-top:4px}
+
+.row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid rgba(43,48,64,.6)}
+.poster{width:44px;height:64px;border-radius:6px;flex:none;background:var(--panel-2);object-fit:cover}
+.row-mid{flex:1;min-width:0}
+.row-name{font-weight:600;font-size:15.5px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.row-sub{color:var(--muted);font-size:12.5px;margin-top:3px}
+.row-acts{display:flex;gap:2px;flex:none}
+.iconbtn{width:40px;height:40px;display:grid;place-items:center;border-radius:10px;color:var(--muted)}
+.iconbtn svg{width:21px;height:21px}
+.iconbtn.on{color:var(--signal)}
+.iconbtn.inc{color:var(--ok)}
+
+/* ---------- show detail ---------- */
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:14.5px;margin-bottom:14px}
+.season{border-bottom:1px solid var(--line)}
+.season-hd{display:flex;align-items:center;gap:10px;width:100%;padding:14px 0;text-align:left}
+.season-hd .nm{flex:1;font-family:"Archivo Narrow",sans-serif;font-size:18px}
+.season-hd .ct{color:var(--muted);font-size:12.5px}
+.chev{width:16px;height:16px;color:var(--muted);transition:transform .18s}
+.season.open .chev{transform:rotate(90deg)}
+.eplist{display:none;padding-bottom:10px}
+.season.open .eplist{display:block}
+.eprow{width:100%;text-align:left;display:flex;gap:11px;align-items:baseline;padding:9px 2px;border-top:1px solid rgba(43,48,64,.45)}
+.epnum{font-family:"Archivo Narrow",sans-serif;color:var(--muted);font-size:13px;width:46px;flex:none}
+.epnm{flex:1;font-size:14.5px;line-height:1.35}
+.epstat{margin:2px 0 6px 57px;font-size:12.5px;color:var(--muted);display:none}
+.epstat.open{display:block}
+.epstat span{display:inline-block;margin-right:14px}
+
+.step{display:flex;gap:13px;align-items:flex-start;margin-bottom:16px;font-size:15px;line-height:1.5}
+.step .n{width:26px;height:26px;flex:none;border-radius:50%;border:1px solid var(--signal-dim);color:var(--signal);
+  display:grid;place-items:center;font-size:13px;font-weight:600;margin-top:1px}
+.step a{color:var(--signal)}
+.spin{width:19px;height:19px;border:2px solid var(--line);border-top-color:var(--signal);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.danger{color:var(--live);border-color:rgba(224,85,61,.4)}
+.note{color:var(--muted);font-size:13.5px;line-height:1.55}
+.empty{text-align:center;padding:44px 20px;color:var(--muted);font-size:14.5px;line-height:1.6}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:13.5px;color:var(--muted);margin-bottom:7px}
+.field input[type=text]{width:100%;padding:12px 14px;border-radius:11px;background:var(--panel);border:1px solid var(--line);color:var(--text)}
+.field input[type=range]{width:100%;accent-color:var(--signal)}
+.toast{
+  position:fixed;left:16px;right:16px;bottom:calc(84px + var(--safe-b));z-index:60;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
+  padding:13px 16px;font-size:14px;text-align:center;
+  opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;
+}
+.toast.show{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="view"></main>
+  <nav id="tabs"></nav>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ============ constants ============ */
+const KEY = "tonight.v1";
+const IMG = "https://image.tmdb.org/t/p/w154";
+const TIERS = [
+  {lbl:"Instant rewatch",   hint:"Would put it on again tomorrow", mult:2.0,  col:"#F0B429"},
+  {lbl:"Genuinely great",   hint:"Held my full attention",          mult:1.5,  col:"#5FBF8F"},
+  {lbl:"Solid episode",     hint:"No complaints",                   mult:1.0,  col:"#6E90C4"},
+  {lbl:"Background noise",  hint:"Was on, wasn't watching",         mult:0.5,  col:"#868DA3"},
+  {lbl:"Skip it next time", hint:"Bury this one",                   mult:0.15, col:"#E0553D"}
+];
+
+/* ============ state ============ */
+const blank = () => ({
+  apiKey:"", shows:{}, stats:{}, history:[], pending:null,
+  settings:{k:3, p:1.2, histLen:25},
+  cache:{top:null, topAt:0}
+});
+function sane(o){
+  o = Object.assign(blank(), (o && typeof o === "object") ? o : {});
+  if(typeof o.apiKey !== "string") o.apiKey = "";
+  if(!o.shows || typeof o.shows !== "object" || Array.isArray(o.shows)) o.shows = {};
+  if(!o.stats || typeof o.stats !== "object" || Array.isArray(o.stats)) o.stats = {};
+  if(!Array.isArray(o.history)) o.history = [];
+  o.history = o.history.filter(h => h && h.id != null);
+  o.settings = Object.assign(blank().settings, (o.settings && typeof o.settings === "object") ? o.settings : {});
+  o.settings.k = isFinite(o.settings.k) ? Math.min(8, Math.max(0, +o.settings.k)) : 3;
+  o.settings.p = isFinite(o.settings.p) ? Math.min(3, Math.max(0, +o.settings.p)) : 1.2;
+  o.cache = Object.assign({top:null, topAt:0}, (o.cache && typeof o.cache === "object") ? o.cache : {});
+  if(!Array.isArray(o.cache.top)) o.cache.top = null;
+  for(const id in o.shows){
+    const s = o.shows[id];
+    if(!s || typeof s !== "object"){ delete o.shows[id]; continue; }
+    s.id = String(id);
+    s.name = String(s.name || "Untitled");
+    if(!Array.isArray(s.episodes)) s.episodes = null;
+    if(!Array.isArray(s.favSeasons)) s.favSeasons = [];
+    s.loading = false;
+  }
+  if(o.pending && !o.shows[o.pending.id]) o.pending = null;
+  return o;
+}
+
+let S;
+try { S = sane(JSON.parse(localStorage.getItem(KEY) || "{}")); }
+catch(e){ S = blank(); }
+
+let saveTimer = null;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{
+    try{ localStorage.setItem(KEY, JSON.stringify(S)); }
+    catch(e){ toast("Storage is full — export a backup, then remove a show."); }
+  }, 120);
+}
+
+/* ============ helpers ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const code = (s,e) => "S"+pad(s)+"E"+pad(e);
+const epKey = (id,s,e) => id+":"+s+":"+e;
+const today = () => new Date().toDateString();
+const stat = k => S.stats[k] || {rating:null, watched:0, last:null};
+
+function toast(msg){
+  const t = $("#toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove("show"), 2600);
+}
+function ago(iso){
+  if(!iso) return "never";
+  const d = Math.floor((Date.now()-new Date(iso))/864e5);
+  if(d<=0) return "today";
+  if(d===1) return "yesterday";
+  if(d<30) return d+" days ago";
+  if(d<365) return Math.floor(d/30)+" months ago";
+  return Math.floor(d/365)+"y ago";
+}
+
+/* ============ tmdb ============ */
+async function api(path, params){
+  if(!S.apiKey) throw new Error("No API key set. Add one in Settings.");
+  const u = new URL("https://api.themoviedb.org/3"+path);
+  u.searchParams.set("api_key", S.apiKey);
+  for(const k in (params||{})) u.searchParams.set(k, params[k]);
+  let r;
+  try{ r = await fetch(u.href); }
+  catch(err){
+    throw new Error("Couldn't reach TMDb. If you opened this file directly rather than from a web address, that's why — it has to be served over https.");
+  }
+  if(r.status === 401) throw new Error("TMDb rejected that key. Check it in Settings.");
+  if(r.status === 429) throw new Error("Too many requests at once. Wait a few seconds and try again.");
+  if(!r.ok) throw new Error("TMDb request failed (" + r.status + ").");
+  return r.json();
+}
+
+async function pullEpisodes(showId, onProgress){
+  const info = await api("/tv/"+showId);
+  const seasons = (info.seasons||[]).filter(s => s.season_number > 0);
+  const eps = [];
+  for(let i=0;i<seasons.length;i++){
+    if(onProgress) onProgress(i+1, seasons.length);
+    const d = await api("/tv/"+showId+"/season/"+seasons[i].season_number);
+    for(const e of (d.episodes||[])){
+      if(!e.air_date || new Date(e.air_date) > new Date()) continue;
+      eps.push({
+        s:e.season_number, e:e.episode_number,
+        n:e.name || "Episode "+e.episode_number,
+        o:(e.overview||"").slice(0,190),
+        r:e.vote_average || 0,
+        d:e.air_date
+      });
+    }
+  }
+  return eps;
+}
+
+/* ============ the roll ============ */
+function weightOf(show, ep){
+  const st = stat(epKey(show.id, ep.s, ep.e));
+  const base = (ep.r > 0 ? ep.r : 6.5) / 10;
+  const rating = Math.pow(base, S.settings.k);
+  const season = (show.favSeasons||[]).includes(ep.s) ? 2.5 : 1;
+  const mine = st.rating == null ? 1 : TIERS[st.rating].mult;
+  const fresh = 1 / Math.pow(1 + st.watched, S.settings.p);
+  return rating * season * mine * fresh;
+}
+
+function inPlay(){
+  let n = 0;
+  for(const id in S.shows){
+    const sh = S.shows[id];
+    if(sh.included && sh.episodes) n += sh.episodes.length;
+  }
+  return n;
+}
+
+/* History can never swallow more than 40% of what's available, so a
+   one-show library with 12 episodes still has somewhere to go. */
+function histCap(){
+  return Math.max(1, Math.min(S.settings.histLen, Math.floor(inPlay() * 0.4)));
+}
+
+function pool(){
+  const cap = histCap();
+  const recent = new Set(S.history.slice(0, cap).map(h => epKey(h.id, h.s, h.e)));
+  const build = (useHist, useToday) => {
+    const out = [];
+    for(const id in S.shows){
+      const sh = S.shows[id];
+      if(!sh.included || !sh.episodes) continue;
+      for(const ep of sh.episodes){
+        const k = epKey(sh.id, ep.s, ep.e);
+        if(useHist && recent.has(k)) continue;
+        const st = stat(k);
+        if(useToday && st.last && new Date(st.last).toDateString() === today()) continue;
+        const w = weightOf(sh, ep);
+        if(w > 0) out.push({sh, ep, w});
+      }
+    }
+    return out;
+  };
+  let list = build(true, true);
+  if(list.length) return {list, relaxed:null};
+  list = build(false, true);
+  if(list.length) return {list, relaxed:"You've seen everything recently — reaching further back."};
+  list = build(false, false);
+  return {list, relaxed: list.length ? "Nothing left but today's episodes." : null};
+}
+
+function draw(cands){
+  const total = cands.reduce((a,c)=>a+c.w, 0);
+  let r = Math.random()*total;
+  for(const c of cands){ r -= c.w; if(r <= 0) return c; }
+  return cands[cands.length-1];
+}
+
+function commit(pick){
+  const k = epKey(pick.sh.id, pick.ep.s, pick.ep.e);
+  const st = stat(k);
+  S.stats[k] = {rating:st.rating, watched:st.watched+1, last:new Date().toISOString()};
+  S.history.unshift({id:pick.sh.id, s:pick.ep.s, e:pick.ep.e, at:Date.now()});
+  S.history = S.history.slice(0, Math.max(S.settings.histLen, 1));
+  S.pending = {id:pick.sh.id, s:pick.ep.s, e:pick.ep.e};
+  save();
+}
+
+/* ============ router ============ */
+let tab = "roll";
+let detail = null;      // show id when viewing a show
+let openSeason = null;
+let openEp = null;
+let result = null;      // last rolled {sh, ep}
+let rolling = false;
+let query = "", searchResults = null, busy = false;
+
+function go(t){
+  tab = t; detail = null; result = null; render(); window.scrollTo(0,0);
+  if(t === "library" && S.apiKey && !S.cache.top) loadTop();
+}
+
+/* ============ icons ============ */
+const I = {
+  dice:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg>',
+  grid:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M9 9v11"/></svg>',
+  cog :'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg>',
+  star:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3.6l2.6 5.5 5.9.8-4.3 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.5 9.9l5.9-.8z"/></svg>',
+  starF:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.6l2.6 5.5 5.9.8-4.3 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.5 9.9l5.9-.8z"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 5v14M5 12h14"/></svg>',
+  tick:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M4.5 12.5l5 5 10-11"/></svg>',
+  find:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>',
+  chev:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>',
+  back:'<svg style="width:17px;height:17px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg>'
+};
+
+/* ============ render ============ */
+function render(){
+  const q0 = $("#q");
+  const keepFocus = q0 && document.activeElement === q0;
+  $("#view").innerHTML =
+      tab === "roll"    ? viewRoll()
+    : tab === "library" ? (detail ? viewShow() : viewLibrary())
+    : viewSettings();
+  $("#tabs").innerHTML = [["roll","Roll",I.dice],["library","Library",I.grid],["settings","Settings",I.cog]]
+    .map(([id,lbl,ic]) => `<button data-tab="${id}" ${tab===id?'aria-current="page"':""}>${ic}<span>${lbl}</span></button>`).join("");
+  wire();
+  if(keepFocus){
+    const q1 = $("#q");
+    if(q1){ q1.focus(); const n = q1.value.length; try{ q1.setSelectionRange(n,n); }catch(e){} }
+  }
+}
+
+/* ---- roll ---- */
+function viewRoll(){
+  if(!S.apiKey) return onboard();
+  if(S.pending) return viewRate();
+  const shows = Object.values(S.shows).filter(s => s.included && s.episodes);
+  if(!shows.length) return `<div class="empty">No shows in the mix yet.<br>Open Library and tick a few.</div>`;
+
+  if(result){
+    const {sh, ep} = result;
+    const st = stat(epKey(sh.id, ep.s, ep.e));
+    return `
+      <div class="card" style="margin-top:6vh">
+        <div class="slug">${code(ep.s, ep.e)}</div>
+        <h1 class="ep-show">${esc(sh.name)}</h1>
+        <p class="ep-title">${esc(ep.n)}</p>
+        ${ep.o ? `<p class="ep-blurb">${esc(ep.o)}…</p>` : ""}
+        <div class="meta">
+          <span>TMDb <b>${ep.r ? ep.r.toFixed(1) : "—"}</b></span>
+          <span>Aired <b>${ep.d ? ep.d.slice(0,4) : "—"}</b></span>
+          <span>Watched <b>${st.watched}×</b></span>
+          ${(sh.favSeasons||[]).includes(ep.s) ? `<span style="color:var(--signal)">Favourite season</span>` : ""}
+        </div>
+      </div>
+      <button class="btn" data-act="roll">Roll again</button>
+      <p class="note" style="text-align:center;margin-top:14px">You'll rate this one before the next roll.</p>`;
+  }
+
+  const n = pool().list.length;
+  return `
+    <div class="tally ${rolling?"live":""}" data-act="roll" role="button" tabindex="0">
+      ${rolling ? `<div class="reel" id="reel">…</div>` : `<div class="tally-word">Roll</div>`}
+    </div>
+    <p class="tally-sub">${rolling ? "" : n + " episode" + (n===1?"":"s") + " in the running"}</p>`;
+}
+
+function onboard(){
+  return `
+    <h1 class="ep-show" style="font-size:30px;margin-top:6vh">First, a one-time setup</h1>
+    <p class="note" style="margin:10px 0 22px">This app looks up episode lists and ratings from a free film database called TMDb. They give out a key so it knows the requests are yours. It costs nothing and takes about five minutes.</p>
+    <div class="step"><span class="n">1</span><div>Make a free account at <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener">themoviedb.org</a> and click the link in the confirmation email.</div></div>
+    <div class="step"><span class="n">2</span><div>Sign in, then go to Settings, then API, and choose <b>Request an API Key</b>. Pick the Developer option.</div></div>
+    <div class="step"><span class="n">3</span><div>Fill in the form. For the website address you can put anything, even <b>https://localhost</b>. For what you're using it for, write that it's a personal project just for yourself.</div></div>
+    <div class="step"><span class="n">4</span><div>You'll be shown two long codes. Copy the <b>shorter</b> one, labelled API Key.</div></div>
+    <div class="step"><span class="n">5</span><div>Paste it here.</div></div>
+    <div class="field" style="margin-top:20px">
+      <input id="key" type="text" placeholder="Paste your key" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+    <button class="btn" data-act="testkey">Save and check it works</button>`;
+}
+
+function viewRate(){
+  const sh = S.shows[S.pending.id];
+  const ep = sh && (sh.episodes||[]).find(x => x.s===S.pending.s && x.e===S.pending.e);
+  if(!ep){ S.pending = null; save(); return viewRoll(); }
+  return `
+    <div class="slug" style="margin-top:2vh">Last watched</div>
+    <h1 class="ep-show">${esc(sh.name)}</h1>
+    <p class="note" style="margin:2px 0 22px">${code(ep.s,ep.e)} · ${esc(ep.n)}</p>
+    ${TIERS.map((t,i) => `
+      <button class="tier" data-tier="${i}">
+        <span class="dot" style="background:${t.col}"></span>
+        <span><span class="lbl">${t.lbl}</span><br><span class="hint">${t.hint}</span></span>
+      </button>`).join("")}
+    <button class="btn ghost" data-tier="-1" style="margin-top:8px">Didn't finish it — skip rating</button>`;
+}
+
+/* ---- library ---- */
+function viewLibrary(){
+  const mine = Object.values(S.shows).sort((a,b) =>
+    (b.favourite?2:0)+(b.included?1:0) - ((a.favourite?2:0)+(a.included?1:0)) || a.name.localeCompare(b.name));
+  const listed = new Set(mine.map(s => s.id));
+  const browse = (searchResults || S.cache.top || []).filter(s => !listed.has(s.id));
+
+  return `
+    <div class="searchwrap">${I.find}
+      <input id="q" type="search" placeholder="Search every show" value="${esc(query)}" autocapitalize="words" enterkeyhint="search">
+    </div>
+    ${busy ? `<p class="note" style="text-align:center">Loading…</p>` : ""}
+    ${mine.length && !query ? `<div class="sec">Your shows</div>` + mine.map(rowMine).join("") : ""}
+    ${browse.length ? `<div class="sec">${query ? "Search results" : "Top rated on TMDb"}</div>` + browse.map(rowNew).join("") : ""}
+    ${!mine.length && !browse.length && !busy ? `<div class="empty">${S.apiKey ? "Search for a show to get started." : "Add your TMDb key in Settings first."}</div>` : ""}`;
+}
+
+function rowMine(s){
+  const eps = s.episodes ? s.episodes.length : 0;
+  return `<div class="row">
+    ${s.poster ? `<img class="poster" src="${IMG+s.poster}" alt="">` : `<div class="poster"></div>`}
+    <button class="row-mid" data-open="${s.id}" style="text-align:left">
+      <div class="row-name">${esc(s.name)}</div>
+      <div class="row-sub">${s.loading ? (s.prog || "Downloading episodes…") : (s.year||"—") + " · " + (eps ? eps+" episodes" : "not loaded") + (s.included ? " · in the mix" : "")}</div>
+    </button>
+    <div class="row-acts">
+      <button class="iconbtn ${s.favourite?"on":""}" data-fav="${s.id}" aria-label="Favourite">${s.favourite?I.starF:I.star}</button>
+      ${s.loading
+        ? `<span class="iconbtn"><span class="spin"></span></span>`
+        : `<button class="iconbtn ${s.included?"inc":""}" data-inc="${s.id}" aria-label="Include in rolls">${s.included?I.tick:I.plus}</button>`}
+    </div>
+  </div>`;
+}
+
+function rowNew(s){
+  return `<div class="row">
+    ${s.poster ? `<img class="poster" src="${IMG+s.poster}" alt="">` : `<div class="poster"></div>`}
+    <div class="row-mid">
+      <div class="row-name">${esc(s.name)}</div>
+      <div class="row-sub">${s.year||"—"} · ${s.vote ? s.vote.toFixed(1) : "—"}</div>
+    </div>
+    <div class="row-acts">
+      <button class="iconbtn" data-add="${s.id}" data-name="${esc(s.name)}" aria-label="Add">${I.plus}</button>
+    </div>
+  </div>`;
+}
+
+/* ---- show detail ---- */
+function viewShow(){
+  const sh = S.shows[detail];
+  if(!sh) return viewLibrary();
+  const bySeason = {};
+  for(const ep of (sh.episodes||[])) (bySeason[ep.s] = bySeason[ep.s] || []).push(ep);
+  const nums = Object.keys(bySeason).map(Number).sort((a,b)=>a-b);
+
+  return `
+    <button class="back" data-back="1">${I.back} Library</button>
+    <h1 class="ep-show" style="font-size:29px">${esc(sh.name)}</h1>
+    <p class="note" style="margin:2px 0 18px">${sh.year||"—"} · ${(sh.episodes||[]).length} episodes · ${sh.included?"in the mix":"not in the mix"}</p>
+    ${sh.episodes ? "" : `<p class="note">Episodes haven't been downloaded yet.</p>`}
+    ${nums.length ? nums.map(n => {
+      const eps = bySeason[n].sort((a,b)=>a.e-b.e);
+      const fav = (sh.favSeasons||[]).includes(n);
+      const open = openSeason === n;
+      return `<div class="season ${open?"open":""}">
+        <div class="season-hd">
+          <button class="iconbtn ${fav?"on":""}" data-favseason="${n}" aria-label="Favourite season ${n}">${fav?I.starF:I.star}</button>
+          <button class="nm" data-season="${n}" style="text-align:left;flex:1">Season ${n}<div class="ct">${eps.length} episodes</div></button>
+          <button data-season="${n}" aria-label="Toggle">${I.chev}</button>
+        </div>
+        <div class="eplist">${eps.map(ep => {
+          const k = epKey(sh.id, ep.s, ep.e);
+          const st = stat(k);
+          const isOpen = openEp === k;
+          return `<button class="eprow" data-ep="${k}">
+              <span class="epnum">${code(ep.s,ep.e)}</span>
+              <span class="epnm">${esc(ep.n)}</span>
+              <span class="epnum" style="width:auto;text-align:right">${ep.r?ep.r.toFixed(1):"—"}</span>
+            </button>
+            <div class="epstat ${isOpen?"open":""}">
+              <span>Your rating: <b style="color:${st.rating!=null?TIERS[st.rating].col:"var(--muted)"}">${st.rating!=null?TIERS[st.rating].lbl:"unrated"}</b></span>
+              <span>Watched ${st.watched}×</span>
+              <span>Last ${ago(st.last)}</span>
+            </div>`;
+        }).join("")}</div>
+      </div>`;
+    }).join("") : ""}
+    <button class="btn ghost danger" data-remove="${sh.id}" style="margin:26px 0 8px">Remove ${esc(sh.name)} from library</button>
+    <p class="note">Your ratings and watch counts for this show are deleted too.</p>`;
+}
+
+/* ---- settings ---- */
+function viewSettings(){
+  const n = Object.values(S.shows).filter(s=>s.included).length;
+  return `
+    <h1 class="ep-show" style="font-size:29px;margin-bottom:18px">Settings</h1>
+
+    <div class="field">
+      <label for="key">TMDb API key (v3 auth)</label>
+      <input id="key" type="text" value="${esc(S.apiKey)}" placeholder="Paste your key" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+
+    <div class="field">
+      <label>Quick presets</label>
+      <div class="btn-row">
+        <button class="btn ghost" data-preset="comfort" style="font-size:14px;padding:12px">Comfort</button>
+        <button class="btn ghost" data-preset="balanced" style="font-size:14px;padding:12px">Balanced</button>
+        <button class="btn ghost" data-preset="explore" style="font-size:14px;padding:12px">Explore</button>
+      </div>
+      <p class="note" style="margin-top:8px">Comfort lets favourites come back around. Explore pushes you toward episodes you've never seen.</p>
+    </div>
+
+    <div class="field">
+      <label>How much episode ratings matter — <b id="kv">${S.settings.k.toFixed(1)}</b></label>
+      <input id="k" type="range" min="0" max="8" step="0.5" value="${S.settings.k}">
+      <p class="note">At 0 every episode is equally likely. Higher values push hard toward the well-rated ones.</p>
+    </div>
+
+    <div class="field">
+      <label>How hard to avoid repeats — <b id="pv">${S.settings.p.toFixed(1)}</b></label>
+      <input id="p" type="range" min="0" max="3" step="0.1" value="${S.settings.p}">
+      <p class="note">At 0 rewatches are as likely as fresh episodes. At 1.2 an episode you've seen twice is a third as likely as one you haven't.</p>
+    </div>
+
+    <p class="note" style="margin:26px 0 10px">${n} show${n===1?"":"s"} in the mix · ${S.history.length} in recent history</p>
+    <div class="btn-row">
+      <button class="btn ghost" data-act="export">Export backup</button>
+      <button class="btn ghost" data-act="import">Restore</button>
+    </div>
+    <button class="btn ghost" data-act="testkey" style="margin-top:10px">Test connection</button>
+    <button class="btn ghost" data-act="clearhist" style="margin-top:10px">Clear recent history</button>`;
+}
+
+/* ============ events ============ */
+function wire(){
+  document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => go(b.dataset.tab));
+  document.querySelectorAll("[data-act]").forEach(b => {
+    b.onclick = () => act(b.dataset.act);
+    if(b.tagName !== "BUTTON") b.onkeydown = e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); act(b.dataset.act); } };
+  });
+  document.querySelectorAll("[data-tier]").forEach(b => b.onclick = () => rate(+b.dataset.tier));
+  document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => { detail = b.dataset.open; openSeason = null; openEp = null; render(); window.scrollTo(0,0); });
+  document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => { detail = null; render(); });
+  document.querySelectorAll("[data-fav]").forEach(b => b.onclick = () => { const s = S.shows[b.dataset.fav]; s.favourite = !s.favourite; save(); render(); });
+  document.querySelectorAll("[data-inc]").forEach(b => b.onclick = () => include(b.dataset.inc));
+  document.querySelectorAll("[data-add]").forEach(b => b.onclick = () => addShow(b.dataset.add, b.dataset.name));
+  document.querySelectorAll("[data-season]").forEach(b => b.onclick = () => { const n = +b.dataset.season; openSeason = openSeason === n ? null : n; render(); });
+  document.querySelectorAll("[data-favseason]").forEach(b => b.onclick = () => {
+    const sh = S.shows[detail], n = +b.dataset.favseason;
+    sh.favSeasons = sh.favSeasons || [];
+    const i = sh.favSeasons.indexOf(n);
+    i < 0 ? sh.favSeasons.push(n) : sh.favSeasons.splice(i,1);
+    save(); render();
+  });
+  document.querySelectorAll("[data-ep]").forEach(b => b.onclick = () => { openEp = openEp === b.dataset.ep ? null : b.dataset.ep; render(); });
+
+  document.querySelectorAll("[data-remove]").forEach(b => b.onclick = () => {
+    const sh = S.shows[b.dataset.remove];
+    if(!sh || !confirm("Remove " + sh.name + " and its ratings?")) return;
+    const pre = sh.id + ":";
+    for(const k in S.stats) if(k.indexOf(pre) === 0) delete S.stats[k];
+    S.history = S.history.filter(h => String(h.id) !== sh.id);
+    if(S.pending && String(S.pending.id) === sh.id) S.pending = null;
+    delete S.shows[sh.id];
+    detail = null; save(); render();
+    toast("Removed.");
+  });
+  document.querySelectorAll("[data-preset]").forEach(b => b.onclick = () => {
+    const v = {comfort:[2,0.3], balanced:[3,1.2], explore:[3.5,2.2]}[b.dataset.preset];
+    S.settings.k = v[0]; S.settings.p = v[1];
+    save(); render(); toast("Set to " + b.dataset.preset + ".");
+  });
+
+  const q = $("#q");
+  if(q){
+    q.oninput = () => { query = q.value; clearTimeout(q._t); q._t = setTimeout(search, 420); };
+    q.onkeydown = e => { if(e.key === "Enter"){ e.preventDefault(); q.blur(); clearTimeout(q._t); search(); } };
+  }
+  const key = $("#key");
+  if(key) key.onchange = () => { S.apiKey = key.value.trim(); save(); S.cache.top = null; toast("Key saved."); };
+  const k = $("#k");
+  if(k) k.oninput = () => { S.settings.k = +k.value; $("#kv").textContent = S.settings.k.toFixed(1); save(); };
+  const p = $("#p");
+  if(p) p.oninput = () => { S.settings.p = +p.value; $("#pv").textContent = S.settings.p.toFixed(1); save(); };
+}
+
+function act(a){
+  if(a === "roll") doRoll();
+  if(a === "testkey"){
+    const f = $("#key");
+    if(f && f.value.trim()){ S.apiKey = f.value.trim(); save(); S.cache.top = null; }
+    if(!S.apiKey){ toast("Paste a key first."); return; }
+    toast("Checking…");
+    api("/tv/top_rated", {page:1})
+      .then(() => { toast("Connected. Open Library to pick shows."); go("library"); })
+      .catch(e => toast(e.message));
+    return;
+  }
+  if(a === "clearhist"){ S.history = []; save(); toast("History cleared."); render(); }
+  if(a === "export"){
+    const blob = new Blob([JSON.stringify(S)], {type:"application/json"});
+    const a2 = document.createElement("a");
+    a2.href = URL.createObjectURL(blob);
+    a2.download = "tonight-backup.json";
+    a2.click();
+  }
+  if(a === "import"){
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = "application/json";
+    inp.onchange = () => {
+      const f = inp.files[0]; if(!f) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        try{ S = sane(JSON.parse(rd.result)); save(); toast("Restored."); render(); }
+        catch(e){ toast("That file couldn't be read."); }
+      };
+      rd.readAsText(f);
+    };
+    inp.click();
+  }
+}
+
+async function doRoll(){
+  if(rolling) return;
+  const {list:cands, relaxed} = pool();
+  if(!cands.length){
+    toast("Nothing to roll. Tick at least one show into the mix.");
+    return;
+  }
+  if(relaxed) toast(relaxed);
+  const pick = draw(cands);
+  rolling = true; result = null; render();
+
+  const reel = $("#reel");
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(reel && !reduced){
+    for(let i=0;i<7;i++){
+      const c = cands[Math.floor(Math.random()*cands.length)];
+      reel.textContent = c.sh.name + " · " + code(c.ep.s, c.ep.e);
+      await new Promise(r => setTimeout(r, 95 + i*22));
+    }
+  } else {
+    await new Promise(r => setTimeout(r, 180));
+  }
+  commit(pick);
+  rolling = false;
+  result = {sh:pick.sh, ep:pick.ep};
+  render();
+}
+
+function rate(i){
+  if(!S.pending) return;
+  if(i >= 0){
+    const k = epKey(S.pending.id, S.pending.s, S.pending.e);
+    S.stats[k] = Object.assign(stat(k), {rating:i});
+  }
+  S.pending = null; save(); render();
+  setTimeout(doRoll, 120);
+}
+
+async function search(){
+  if(!S.apiKey || !query.trim()){ searchResults = null; render(); loadTop(); return; }
+  busy = true; render();
+  try{
+    const d = await api("/search/tv", {query});
+    searchResults = (d.results||[]).map(mapShow);
+  }catch(e){ toast(e.message); }
+  busy = false; render();
+}
+
+const mapShow = r => ({
+  id:String(r.id), name:r.name,
+  year:(r.first_air_date||"").slice(0,4),
+  poster:r.poster_path, vote:r.vote_average
+});
+
+async function loadTop(){
+  if(!S.apiKey || S.cache.top || busy) return;
+  busy = true; render();
+  try{
+    const pages = await Promise.all([1,2,3,4,5].map(p => api("/tv/top_rated", {page:p})));
+    S.cache.top = pages.flatMap(d => (d.results||[]).map(mapShow)).slice(0,100);
+    S.cache.topAt = Date.now();
+    save();
+  }catch(e){ toast(e.message); }
+  busy = false; render();
+}
+
+async function addShow(id, name){
+  if(S.shows[id]) return;
+  const src = (searchResults || S.cache.top || []).find(s => s.id === id) || {id, name};
+  S.shows[id] = {id, name:src.name, year:src.year, poster:src.poster, vote:src.vote,
+                 included:false, favourite:false, favSeasons:[], episodes:null};
+  save(); render();
+  include(id);
+}
+
+async function include(id){
+  const sh = S.shows[id];
+  if(!sh || sh.loading) return;
+  if(sh.episodes){ sh.included = !sh.included; save(); render(); return; }
+  sh.loading = true; sh.prog = "Downloading episodes…"; render();
+  try{
+    sh.episodes = await pullEpisodes(id, (i,n) => {
+      sh.prog = "Season " + i + " of " + n + "…";
+      const el = document.querySelector('[data-open="' + id + '"] .row-sub');
+      if(el) el.textContent = sh.prog;
+    });
+    sh.loading = false; sh.included = true;
+    save(); render();
+    toast(sh.name + " added — " + sh.episodes.length + " episodes.");
+  }catch(e){
+    sh.loading = false;
+    toast(e.message);
+    delete S.shows[id]; save(); render();
+  }
+}
+
+/* ============ homescreen icon ============ */
+(function icon(){
+  const c = document.createElement("canvas");
+  c.width = c.height = 180;
+  const x = c.getContext("2d");
+  x.fillStyle = "#0F1119"; x.fillRect(0,0,180,180);
+  x.strokeStyle = "#2B3040"; x.lineWidth = 4;
+  x.beginPath(); x.arc(90,90,60,0,7); x.stroke();
+  x.fillStyle = "#F0B429";
+  [[68,68],[112,112],[90,90]].forEach(([a,b]) => { x.beginPath(); x.arc(a,b,9,0,7); x.fill(); });
+  const l = document.createElement("link");
+  l.rel = "apple-touch-icon"; l.href = c.toDataURL("image/png");
+  document.head.appendChild(l);
+})();
+
+render();
+if(S.apiKey && tab === "library" && !S.cache.top) loadTop();
+document.addEventListener("visibilitychange", () => { if(document.hidden) save(); });
+</script>
+</body>
+</html>
