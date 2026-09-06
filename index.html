@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tonight">
+<meta name="theme-color" content="#0F1119">
+<title>Tonight</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0F1119; --panel:#181B26; --panel-2:#1F2331; --line:#2B3040;
+  --text:#EAE7DF; --muted:#868DA3; --signal:#F0B429; --signal-dim:#7A5D16;
+  --live:#E0553D; --ok:#5FBF8F;
+  --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;background:var(--ink)}
+body{font:400 16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:var(--text);
+  overscroll-behavior-y:none;-webkit-font-smoothing:antialiased}
+h1,h2,.cond{font-family:"Archivo Narrow",-apple-system,system-ui,sans-serif;font-weight:600;letter-spacing:.01em}
+button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer}
+input{font:inherit}
+:focus-visible{outline:2px solid var(--signal);outline-offset:2px;border-radius:4px}
+#app{min-height:100%;display:flex;flex-direction:column}
+#view{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(var(--safe-t) + 14px) 16px 96px}
+
+#tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:rgba(15,17,25,.92);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--line);padding-bottom:var(--safe-b)}
+#tabs button{flex:1;padding:11px 4px 9px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:10.5px}
+#tabs button .ic{width:22px;height:22px;display:block}
+#tabs button[aria-current="page"]{color:var(--signal)}
+
+.tally{width:100%;aspect-ratio:1/1;max-width:250px;margin:5vh auto 0;border-radius:50%;position:relative;
+  display:grid;place-items:center;border:1px solid var(--line);
+  background:radial-gradient(circle at 50% 42%,#1C2130,#12141D 70%)}
+.tally::before{content:"";position:absolute;inset:14px;border-radius:50%;border:1px solid rgba(240,180,41,.14)}
+.tally.live{border-color:var(--signal-dim);animation:pulse 1.05s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(240,180,41,0)}50%{box-shadow:0 0 44px 2px rgba(240,180,41,.22)}}
+.tally-word{font-family:"Archivo Narrow",sans-serif;font-size:29px;font-weight:700}
+.tally-sub{color:var(--muted);font-size:13px;margin-top:8px;text-align:center;min-height:20px}
+.reel{font-family:"Archivo Narrow",sans-serif;font-size:16px;color:var(--signal);text-align:center;padding:0 22px;line-height:1.25}
+
+.runsel{display:flex;gap:8px;justify-content:center;margin-top:22px}
+.runsel button{padding:9px 18px;border-radius:11px;border:1px solid var(--line);color:var(--muted);font-size:14px;font-weight:600}
+.runsel button.on{border-color:var(--signal);color:var(--signal);background:#241F12}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin:0 0 14px}
+.slug{font-family:"Archivo Narrow",sans-serif;font-size:13px;color:var(--signal);letter-spacing:.06em}
+.ep-show{font-family:"Archivo Narrow",sans-serif;font-size:26px;line-height:1.12;margin:6px 0 2px}
+.ep-title{font-size:16.5px;font-weight:600;margin:8px 0 0}
+.ep-blurb{color:var(--muted);font-size:14px;margin:9px 0 0}
+.meta{display:flex;gap:13px;flex-wrap:wrap;color:var(--muted);font-size:12.5px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.meta b{color:var(--text);font-weight:600}
+.prov{margin-top:10px;font-size:12.5px;color:var(--muted)}
+.prov b{color:var(--ok);font-weight:600}
+
+.btn{display:block;width:100%;text-align:center;padding:15px;border-radius:14px;background:var(--signal);color:#171308;font-weight:700;font-size:16.5px}
+.btn:active{transform:scale(.985)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text);font-weight:600}
+.btn.sm{padding:11px;font-size:14px}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.btn-row{display:flex;gap:10px;margin-top:10px}
+.btn-row .btn{margin:0}
+.danger{color:var(--live);border-color:rgba(224,85,61,.4)}
+
+.tier{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 15px;border-radius:12px;
+  background:var(--panel-2);border:1px solid var(--line);margin-bottom:8px}
+.tier:active{border-color:var(--signal)}
+.tier .dot{width:19px;height:19px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:11px;font-weight:700;color:#12141D}
+.tier .lbl{font-weight:600;font-size:15px}
+.tier .hint{color:var(--muted);font-size:12.5px;margin-top:1px}
+.tier.sel{border-color:var(--signal);background:#241F12}
+.dots{display:flex;gap:7px;margin:8px 0 4px 0;align-items:center;flex-wrap:wrap}
+.dots button{width:26px;height:26px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center}
+.dots button span{width:17px;height:17px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#12141D}
+.dots button.on{border-color:var(--text);transform:scale(1.12)}
+.dots .clr{width:auto;padding:0 9px;border-radius:8px;font-size:11.5px;color:var(--muted)}
+
+.searchwrap{position:relative;margin-bottom:14px}
+.searchwrap input{width:100%;padding:13px 15px 13px 42px;border-radius:12px;background:var(--panel);border:1px solid var(--line);color:var(--text)}
+.searchwrap svg{position:absolute;left:14px;top:14px;width:18px;height:18px;color:var(--muted)}
+.clearq{position:absolute;right:6px;top:6px;width:36px;height:36px;display:grid;place-items:center;color:var(--muted)}
+.clearq svg{position:static;width:17px;height:17px}
+.sec{font-family:"Archivo Narrow",sans-serif;font-size:13px;color:var(--muted);margin:20px 0 9px;letter-spacing:.05em}
+.sec:first-child{margin-top:4px}
+
+.subtabs{display:flex;gap:8px;margin:0 0 16px}
+.subtabs button{flex:1;padding:10px;border-radius:11px;border:1px solid var(--line);color:var(--muted);font-size:14px;font-weight:600}
+.subtabs button.on{border-color:var(--signal);color:var(--signal);background:#241F12}
+
+.row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid rgba(43,48,64,.6)}
+.poster{width:44px;height:64px;border-radius:6px;flex:none;background:var(--panel-2);object-fit:cover}
+.row-mid{flex:1;min-width:0;text-align:left}
+.row-name{font-weight:600;font-size:15px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.row-sub{color:var(--muted);font-size:12.5px;margin-top:3px}
+.row-acts{display:flex;gap:1px;flex:none}
+.iconbtn{width:38px;height:38px;display:grid;place-items:center;border-radius:10px;color:var(--muted)}
+.iconbtn svg{width:20px;height:20px}
+.iconbtn.on{color:var(--signal)}
+.iconbtn.inc{color:var(--ok)}
+.iconbtn.ban{color:var(--live)}
+
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:14.5px;margin-bottom:14px}
+.season{border-bottom:1px solid var(--line)}
+.season.blocked{opacity:.45}
+.season-hd{display:flex;align-items:center;gap:4px;padding:10px 0}
+.season-hd .nm{flex:1;font-family:"Archivo Narrow",sans-serif;font-size:17px;text-align:left}
+.season-hd .ct{color:var(--muted);font-size:12.5px;font-family:-apple-system,system-ui,sans-serif}
+.chev{width:16px;height:16px;color:var(--muted);transition:transform .18s}
+.season.open .chev{transform:rotate(90deg)}
+.eplist{display:none;padding-bottom:10px}
+.season.open .eplist{display:block}
+.eprow{width:100%;text-align:left;display:flex;gap:11px;align-items:baseline;padding:9px 2px;border-top:1px solid rgba(43,48,64,.45)}
+.epnum{font-family:"Archivo Narrow",sans-serif;color:var(--muted);font-size:13px;width:46px;flex:none}
+.epnm{flex:1;font-size:14.5px;line-height:1.35}
+.epstat{margin:2px 0 8px 57px;font-size:12.5px;color:var(--muted);display:none}
+.epstat.open{display:block}
+.epstat .line span{display:inline-block;margin-right:13px}
+
+.step{display:flex;gap:13px;align-items:flex-start;margin-bottom:16px;font-size:15px;line-height:1.5}
+.step .n{width:26px;height:26px;flex:none;border-radius:50%;border:1px solid var(--signal-dim);color:var(--signal);
+  display:grid;place-items:center;font-size:13px;font-weight:600;margin-top:1px}
+.step a{color:var(--signal)}
+.spin{width:19px;height:19px;border:2px solid var(--line);border-top-color:var(--signal);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.mood{margin-top:22px}
+.moodrow{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-bottom:8px}
+.chip{padding:7px 13px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-size:13px}
+.chip.on{border-color:var(--signal);color:var(--signal);background:#241F12}
+.chip.clr{border-color:rgba(224,85,61,.4);color:var(--live)}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px}
+.stat .v{font-family:"Archivo Narrow",sans-serif;font-size:25px;color:var(--signal);line-height:1.1}
+.stat .l{color:var(--muted);font-size:12px;margin-top:3px}
+.bar{height:7px;border-radius:4px;background:var(--panel-2);overflow:hidden;margin:5px 0 11px}
+.bar span{display:block;height:100%}
+.pro{display:flex;align-items:center;gap:9px;padding:11px 0;border-bottom:1px solid var(--line)}
+.pro .nm{flex:1;font-weight:600;font-size:15px}
+.pro .on{color:var(--signal);font-size:12px}
+.note{color:var(--muted);font-size:13.5px;line-height:1.55}
+.empty{text-align:center;padding:44px 20px;color:var(--muted);font-size:14.5px;line-height:1.6}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:13.5px;color:var(--muted);margin-bottom:7px}
+.field input[type=text]{width:100%;padding:12px 14px;border-radius:11px;background:var(--panel);border:1px solid var(--line);color:var(--text)}
+.field input[type=range]{width:100%;accent-color:var(--signal)}
+.field select{width:100%;padding:12px 14px;border-radius:11px;background:var(--panel);border:1px solid var(--line);color:var(--text);font:inherit}
+.toast{position:fixed;left:16px;right:16px;bottom:calc(84px + var(--safe-b));z-index:60;background:var(--panel-2);
+  border:1px solid var(--line);border-radius:12px;padding:13px 16px;font-size:14px;text-align:center;
+  opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}
+.toast.show{opacity:1;transform:none}
+.upnext{display:flex;gap:10px;align-items:baseline;padding:10px 2px;border-bottom:1px solid rgba(43,48,64,.5);font-size:14px}
+.upnext .n{color:var(--signal);font-family:"Archivo Narrow",sans-serif;width:18px;flex:none}
+.upnext .t{flex:1;line-height:1.35}
+.upnext .t small{color:var(--muted);display:block;font-size:12.5px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"><main id="view"></main><nav id="tabs"></nav></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+const KEY = "tonight.v2";
+const IMG = "https://image.tmdb.org/t/p/w154";
+const TIERS = [
+  {lbl:"Instant rewatch",   hint:"Would put it on again tomorrow", mult:2.0,  col:"#F0B429"},
+  {lbl:"Genuinely great",   hint:"Held my full attention",          mult:1.5,  col:"#5FBF8F"},
+  {lbl:"Solid episode",     hint:"No complaints",                   mult:1.0,  col:"#6E90C4"},
+  {lbl:"Background noise",  hint:"Was on, wasn't watching",         mult:0.5,  col:"#868DA3"},
+  {lbl:"Skip it next time", hint:"Bury this one",                   mult:0.15, col:"#E0553D"}
+];
+const REASONS = [
+  {id:"long", lbl:"Too long right now", hint:"Save it for another night"},
+  {id:"mood", lbl:"Not the right mood",  hint:"Nothing wrong with it"},
+  {id:"dnf",  lbl:"Didn't finish it",    hint:"Started it, bailed out"}
+];
+const REGIONS = ["AU","US","GB","NZ","CA","IE","DE","FR","IN","JP"];
+
+/* ============ state ============ */
+const blank = () => ({
+  apiKey:"", region:"AU", shows:{}, stats:{},
+  history:[], skipped:[], queue:[], lineup:[],
+  settings:{k:3, p:1.2, histLen:25, run:1, fair:true, rewatch:false},
+  filters:{maxRuntime:0, genre:"", provider:"", unwatchedOnly:false},
+  cache:{top:null, topAt:0}
+});
+
+function sane(o){
+  o = Object.assign(blank(), (o && typeof o === "object") ? o : {});
+  if(typeof o.apiKey !== "string") o.apiKey = "";
+  if(REGIONS.indexOf(o.region) < 0) o.region = "AU";
+  if(!o.shows || typeof o.shows !== "object" || Array.isArray(o.shows)) o.shows = {};
+  if(!o.stats || typeof o.stats !== "object" || Array.isArray(o.stats)) o.stats = {};
+  for(const k in o.stats){
+    const v = o.stats[k];
+    if(!v || typeof v !== "object"){ delete o.stats[k]; continue; }
+    const r = +v.rating;
+    v.rating = (v.rating == null || !isFinite(r) || r < 0 || r >= TIERS.length) ? null : Math.floor(r);
+    v.watched = isFinite(+v.watched) && +v.watched >= 0 ? Math.floor(+v.watched) : 0;
+    if(v.last != null && isNaN(new Date(v.last))) v.last = null;
+  }
+  ["history","skipped","queue","lineup"].forEach(k => {
+    if(!Array.isArray(o[k])) o[k] = [];
+    o[k] = o[k].filter(x => x && x.id != null && x.s != null && x.e != null)
+               .map(x => Object.assign({}, x, {id:String(x.id), s:+x.s, e:+x.e}));
+  });
+  o.settings = Object.assign(blank().settings, (o.settings && typeof o.settings === "object") ? o.settings : {});
+  o.settings.k = isFinite(o.settings.k) ? Math.min(8, Math.max(0, +o.settings.k)) : 3;
+  o.settings.p = isFinite(o.settings.p) ? Math.min(3, Math.max(0, +o.settings.p)) : 1.2;
+  o.settings.run = [1,3,5,10].indexOf(+o.settings.run) >= 0 ? +o.settings.run : 1;
+  o.settings.fair = o.settings.fair !== false;
+  o.settings.rewatch = o.settings.rewatch === true;
+  o.filters = Object.assign({maxRuntime:0, genre:"", provider:"", unwatchedOnly:false},
+    (o.filters && typeof o.filters === "object") ? o.filters : {});
+  o.filters.maxRuntime = [0,25,45,70].indexOf(+o.filters.maxRuntime) >= 0 ? +o.filters.maxRuntime : 0;
+  o.filters.genre = typeof o.filters.genre === "string" ? o.filters.genre : "";
+  o.filters.provider = typeof o.filters.provider === "string" ? o.filters.provider : "";
+  o.filters.unwatchedOnly = o.filters.unwatchedOnly === true;
+  o.cache = Object.assign({top:null, topAt:0}, (o.cache && typeof o.cache === "object") ? o.cache : {});
+  if(!Array.isArray(o.cache.top)) o.cache.top = null;
+  // the old list was raw-average ranked and has no vote counts — discard it
+  if(o.cache.top && o.cache.top.some(x => !x || x.votes == null)) o.cache.top = null;
+  for(const id in o.shows){
+    const s = o.shows[id];
+    if(!s || typeof s !== "object"){ delete o.shows[id]; continue; }
+    s.id = String(id);
+    s.name = String(s.name || "Untitled");
+    if(!Array.isArray(s.episodes)) s.episodes = null;
+    if(!Array.isArray(s.favSeasons)) s.favSeasons = [];
+    if(!Array.isArray(s.banSeasons)) s.banSeasons = [];
+    if(!Array.isArray(s.providers)) s.providers = null;
+    if(!Array.isArray(s.genres)) s.genres = [];
+    s.loading = false;
+  }
+  ["history","skipped","queue","lineup"].forEach(k => { o[k] = o[k].filter(x => o.shows[x.id]); });
+  o.skipped = o.skipped.slice(0, 100);
+  o.history = o.history.slice(0, 200);
+  return o;
+}
+
+const PKEY = "tonight.profiles";
+const slot = n => "tonight.v3:" + n;
+function loadP(){
+  try{
+    const p = JSON.parse(localStorage.getItem(PKEY));
+    if(p && Array.isArray(p.names) && p.names.length) return p;
+  }catch(e){}
+  return {active:"Default", names:["Default"]};
+}
+let P = loadP();
+function saveP(){ try{ localStorage.setItem(PKEY, JSON.stringify(P)); }catch(e){} }
+
+let S;
+try{
+  let raw = localStorage.getItem(slot(P.active));
+  if(raw == null && P.active === "Default") raw = localStorage.getItem(KEY); // migrate v2
+  S = sane(JSON.parse(raw || "{}"));
+}catch(e){ S = blank(); }
+
+let saveTimer = null;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{
+    try{ localStorage.setItem(slot(P.active), JSON.stringify(S)); }
+    catch(e){ toast("Storage is full — export a backup, then remove a show."); }
+  }, 120);
+}
+
+/* ============ helpers ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const code = (s,e) => "S"+pad(s)+"E"+pad(e);
+const epKey = (id,s,e) => id+":"+s+":"+e;
+const today = () => new Date().toDateString();
+const stat = k => S.stats[k] || {rating:null, watched:0, last:null};
+const same = (a,b) => String(a.id) === String(b.id) && a.s === b.s && a.e === b.e;
+function findEp(ref){
+  const sh = S.shows[ref.id];
+  if(!sh || !sh.episodes) return null;
+  const ep = sh.episodes.find(x => x.s === ref.s && x.e === ref.e);
+  return ep ? {sh, ep} : null;
+}
+
+function toast(msg){
+  const t = $("#toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove("show"), 2600);
+}
+function ago(v){
+  if(!v) return "never";
+  const d = Math.floor((Date.now() - new Date(v)) / 864e5);
+  if(d <= 0) return "today";
+  if(d === 1) return "yesterday";
+  if(d < 30) return d + " days ago";
+  if(d < 365) return Math.floor(d/30) + " months ago";
+  return Math.floor(d/365) + "y ago";
+}
+
+/* ============ tmdb ============ */
+async function api(path, params){
+  if(!S.apiKey) throw new Error("No API key set. Add one in Settings.");
+  const u = new URL("https://api.themoviedb.org/3" + path);
+  u.searchParams.set("api_key", S.apiKey);
+  for(const k in (params||{})) u.searchParams.set(k, params[k]);
+  let r;
+  try{ r = await fetch(u.href); }
+  catch(err){ throw new Error("Couldn't reach TMDb. If you opened this file directly rather than from a web address, that's why — it has to be served over https."); }
+  if(r.status === 401) throw new Error("TMDb rejected that key. Check it in Settings.");
+  if(r.status === 429) throw new Error("Too many requests at once. Wait a few seconds and try again.");
+  if(!r.ok) throw new Error("TMDb request failed (" + r.status + ").");
+  return r.json();
+}
+
+async function pullEpisodes(showId, onProgress){
+  const info = await api("/tv/" + showId);
+  const seasons = (info.seasons||[]).filter(s => s.season_number > 0);
+  const genres = (info.genres||[]).map(g => g.name);
+  const eps = [];
+  for(let i=0;i<seasons.length;i++){
+    if(onProgress) onProgress(i+1, seasons.length);
+    const d = await api("/tv/" + showId + "/season/" + seasons[i].season_number);
+    for(const e of (d.episodes||[])){
+      if(!e.air_date || new Date(e.air_date) > new Date()) continue;
+      eps.push({s:e.season_number, e:e.episode_number, n:e.name || "Episode " + e.episode_number,
+                o:(e.overview||"").slice(0,190), r:e.vote_average || 0, v:e.vote_count || 0,
+                t:e.runtime || info.episode_run_time && info.episode_run_time[0] || 0, d:e.air_date});
+    }
+  }
+  eps.genres = genres;
+  return eps;
+}
+
+async function pullProviders(showId){
+  try{
+    const d = await api("/tv/" + showId + "/watch/providers");
+    const reg = (d.results||{})[S.region];
+    if(!reg) return [];
+    const names = [];
+    ["flatrate","free","ads"].forEach(k => (reg[k]||[]).forEach(p => {
+      if(names.indexOf(p.provider_name) < 0) names.push(p.provider_name);
+    }));
+    return names.slice(0, 4);
+  }catch(e){ return []; }
+}
+
+/* ============ weighting & drawing ============ */
+const PRIOR = 6.8, PRIOR_N = 20;
+/* An episode rated 9.8 by three people is not better than one rated 8.9 by
+   four thousand. Pull sparsely-voted scores back toward the mean. */
+function adjRating(ep){
+  const votes = ep.v == null ? PRIOR_N : ep.v;
+  const raw = ep.r > 0 ? ep.r : PRIOR;
+  return (raw * votes + PRIOR * PRIOR_N) / (votes + PRIOR_N);
+}
+function weightOf(show, ep){
+  const st = stat(epKey(show.id, ep.s, ep.e));
+  const rating = Math.pow(adjRating(ep) / 10, S.settings.k);
+  const season = (show.favSeasons||[]).includes(ep.s) ? 2.5 : 1;
+  const mine = (TIERS[st.rating] || {mult:1}).mult;
+  const fresh = S.settings.rewatch
+    ? Math.pow(1 + st.watched, S.settings.p * 0.7)
+    : 1 / Math.pow(1 + st.watched, S.settings.p);
+  return rating * season * mine * fresh;
+}
+/* Without this, a 700-episode show buries a 12-episode one 50:1. */
+function equalise(list){
+  if(!S.settings.fair) return list;
+  const sum = {};
+  list.forEach(c => { sum[c.sh.id] = (sum[c.sh.id] || 0) + c.w; });
+  const shows = Object.keys(sum).length;
+  return list.map(c => Object.assign({}, c, {w: (c.w / sum[c.sh.id]) / shows}));
+}
+
+function inPlay(){
+  let n = 0;
+  for(const id in S.shows){
+    const sh = S.shows[id];
+    if(sh.included && sh.episodes)
+      n += sh.episodes.filter(e => !(sh.banSeasons||[]).includes(e.s)).length;
+  }
+  return n;
+}
+function histCap(){ return Math.max(1, Math.min(S.settings.histLen, Math.floor(inPlay() * 0.4))); }
+
+function pool(extraHeld){
+  const F = S.filters;
+  const cap = histCap();
+  const recent  = new Set(S.history.slice(0, cap).map(h => epKey(h.id, h.s, h.e)));
+  const skipped = new Set(S.skipped.map(h => epKey(h.id, h.s, h.e)));
+  const held    = new Set([].concat(S.lineup, S.queue, extraHeld||[]).map(h => epKey(h.id, h.s, h.e)));
+  const build = (useHist, useToday, useSkip) => {
+    const out = [];
+    for(const id in S.shows){
+      const sh = S.shows[id];
+      if(!sh.included || !sh.episodes) continue;
+      if(F.genre && (sh.genres||[]).indexOf(F.genre) < 0) continue;
+      if(F.provider && (sh.providers||[]).indexOf(F.provider) < 0) continue;
+      for(const ep of sh.episodes){
+        if((sh.banSeasons||[]).includes(ep.s)) continue;
+        if(F.maxRuntime && ep.t && ep.t > F.maxRuntime) continue;
+        const k = epKey(sh.id, ep.s, ep.e);
+        if(F.unwatchedOnly && stat(k).watched > 0) continue;
+        if(held.has(k)) continue;
+        if(useSkip && skipped.has(k)) continue;
+        if(useHist && recent.has(k)) continue;
+        const st = stat(k);
+        if(useToday && st.last && new Date(st.last).toDateString() === today()) continue;
+        const w = weightOf(sh, ep);
+        if(w > 0) out.push({sh, ep, w});
+      }
+    }
+    return out;
+  };
+  let list = build(true, true, true);
+  if(list.length) return {list:equalise(list), relaxed:null};
+  list = build(true, true, false);
+  if(list.length) return {list:equalise(list), relaxed:"Bringing skipped episodes back into the mix."};
+  list = build(false, true, false);
+  if(list.length) return {list:equalise(list), relaxed:"You've seen everything recently — reaching further back."};
+  list = build(false, false, false);
+  return {list:equalise(list), relaxed: list.length ? "Nothing left but today's episodes." : null};
+}
+
+function draw(cands){
+  const total = cands.reduce((a,c) => a + c.w, 0);
+  let r = Math.random() * total;
+  for(const c of cands){ r -= c.w; if(r <= 0) return c; }
+  return cands[cands.length - 1];
+}
+
+/* Episodes in airing order, minus blocked seasons. */
+function orderedEps(sh){
+  return (sh.episodes||[])
+    .filter(e => !(sh.banSeasons||[]).includes(e.s))
+    .slice().sort((a,b) => a.s - b.s || a.e - b.e);
+}
+/* The chosen episode plus the ones that follow it, so a run is one
+   unbroken sitting on one service. Rolls over season boundaries. */
+function followers(sh, start, n){
+  const all = orderedEps(sh);
+  const i = all.findIndex(e => e.s === start.s && e.e === start.e);
+  if(i < 0) return [];
+  return all.slice(i, i + n).map(e => ({id:sh.id, s:e.s, e:e.e}));
+}
+function runwayOf(sh, ep){
+  const all = orderedEps(sh);
+  const i = all.findIndex(x => x.s === ep.s && x.e === ep.e);
+  return i < 0 ? 0 : all.length - i;
+}
+
+/* Queued picks first, then one sequential block from a single show. */
+function buildRun(n){
+  const out = [];
+  while(out.length < n && S.queue.length){
+    const q = S.queue.shift();
+    if(findEp(q) && !out.some(x => same(x,q))) out.push({id:q.id, s:q.s, e:q.e});
+  }
+  if(out.length >= n) return out;
+  const need = n - out.length;
+  const {list, relaxed} = pool(out);
+  if(!list.length) return out;
+  if(relaxed) toast(relaxed);
+  let cands = list;
+  if(need > 1){
+    const roomy = list.filter(c => runwayOf(c.sh, c.ep) >= need);
+    if(roomy.length) cands = roomy;
+    else {
+      let best = 0;
+      list.forEach(c => { const r = runwayOf(c.sh, c.ep); if(r > best) best = r; });
+      if(best > 1) cands = list.filter(c => runwayOf(c.sh, c.ep) === best);
+    }
+  }
+  const p = draw(cands);
+  followers(p.sh, p.ep, need).forEach(b => { if(!out.some(x => same(x,b))) out.push(b); });
+  return out;
+}
+
+function markWatched(ref, tier){
+  const k = epKey(ref.id, ref.s, ref.e);
+  const st = stat(k);
+  const rating = tier == null ? st.rating : tier;
+  S.stats[k] = {rating, watched: st.watched + 1, last: new Date().toISOString()};
+  S.history.unshift({id:ref.id, s:ref.s, e:ref.e, at:Date.now(), rating});
+  S.history = S.history.slice(0, 200);
+  S.skipped = S.skipped.filter(x => !same(x, ref));
+}
+function markSkipped(ref, reason){
+  S.skipped = S.skipped.filter(x => !same(x, ref));
+  S.skipped.unshift({id:ref.id, s:ref.s, e:ref.e, reason, at:Date.now()});
+  S.skipped = S.skipped.slice(0, 100);
+}
+
+function flush(){ clearTimeout(saveTimer); try{ localStorage.setItem(slot(P.active), JSON.stringify(S)); }catch(e){} }
+
+function switchProfile(name){
+  if(P.names.indexOf(name) < 0 || name === P.active) return;
+  flush(); P.active = name; saveP();
+  try{ S = sane(JSON.parse(localStorage.getItem(slot(name)) || "{}")); }catch(e){ S = blank(); }
+  detail = null; panel = null; render(); toast("Switched to " + name + ".");
+}
+function newProfile(name, copy){
+  name = String(name||"").trim().slice(0,24);
+  if(!name) return;
+  if(P.names.indexOf(name) >= 0){ toast("That name is taken."); return; }
+  flush();
+  const carry = copy ? JSON.parse(JSON.stringify(S)) : Object.assign(blank(), {apiKey:S.apiKey, region:S.region});
+  P.names.push(name); P.active = name; saveP();
+  S = sane(carry);
+  if(!copy){ S.history = []; S.skipped = []; S.queue = []; S.lineup = []; }
+  flush(); detail = null; render();
+  toast(copy ? "Copied into " + name + "." : "Started " + name + ".");
+}
+function deleteProfile(name){
+  if(P.names.length < 2) { toast("You need at least one profile."); return; }
+  if(!confirm("Delete the profile " + name + "? Its library and ratings go with it.")) return;
+  try{ localStorage.removeItem(slot(name)); }catch(e){}
+  P.names = P.names.filter(n => n !== name);
+  if(P.active === name){ P.active = P.names[0]; try{ S = sane(JSON.parse(localStorage.getItem(slot(P.active)) || "{}")); }catch(e){ S = blank(); } }
+  saveP(); render(); toast("Deleted " + name + ".");
+}
+
+/* ============ view state ============ */
+let tab = "roll", detail = null, openSeason = null, openEp = null;
+let panel = null, histSub = "watched";
+let rolling = false, query = "", searchResults = null, busy = false;
+
+function go(t){
+  tab = t; detail = null; panel = null; render(); window.scrollTo(0,0);
+  if(t === "library" && S.apiKey && !S.cache.top) loadTop();
+}
+
+/* ============ icons ============ */
+const I = {
+  dice:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg>',
+  grid:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M9 9v11"/></svg>',
+  clock:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.4V12l3.2 2"/></svg>',
+  cog :'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg>',
+  star:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3.6l2.6 5.5 5.9.8-4.3 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.5 9.9l5.9-.8z"/></svg>',
+  starF:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.6l2.6 5.5 5.9.8-4.3 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.5 9.9l5.9-.8z"/></svg>',
+  ban:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.3"/><path d="M6.2 6.2l11.6 11.6"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 5v14M5 12h14"/></svg>',
+  tick:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M4.5 12.5l5 5 10-11"/></svg>',
+  find:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>',
+  chev:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>',
+  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V6M5.5 12.5L12 6l6.5 6.5"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  back:'<svg style="width:17px;height:17px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg>'
+};
+
+/* ============ render ============ */
+function render(){
+  const q0 = $("#q"), keepFocus = q0 && document.activeElement === q0;
+  $("#view").innerHTML =
+      tab === "roll"    ? viewRoll()
+    : tab === "library" ? (detail ? viewShow() : viewLibrary())
+    : tab === "history" ? viewHistory()
+    : viewSettings();
+  $("#tabs").innerHTML = [["roll","Roll",I.dice],["library","Library",I.grid],["history","History",I.clock],["settings","Settings",I.cog]]
+    .map(([id,lbl,ic]) => `<button data-tab="${id}" ${tab===id?'aria-current="page"':""}>${ic}<span>${lbl}</span></button>`).join("");
+  wire();
+  if(keepFocus){ const q1 = $("#q"); if(q1){ q1.focus(); const n = q1.value.length; try{ q1.setSelectionRange(n,n); }catch(e){} } }
+}
+
+function onboard(){
+  return `
+    <h1 class="ep-show" style="font-size:30px;margin-top:5vh">First, a one-time setup</h1>
+    <p class="note" style="margin:10px 0 22px">This app looks up episode lists and ratings from a free film database called TMDb. They give out a key so it knows the requests are yours. It costs nothing and takes about five minutes.</p>
+    <div class="step"><span class="n">1</span><div>Make a free account at <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener">themoviedb.org</a> and click the link in the confirmation email.</div></div>
+    <div class="step"><span class="n">2</span><div>Sign in, then go to Settings, then API, and choose <b>Request an API Key</b>. Pick the Developer option.</div></div>
+    <div class="step"><span class="n">3</span><div>Fill in the form. For the website address you can put anything, even <b>https://localhost</b>. For what you're using it for, write that it's a personal project just for yourself.</div></div>
+    <div class="step"><span class="n">4</span><div>You'll be shown two long codes. Copy the <b>shorter</b> one, labelled API Key.</div></div>
+    <div class="step"><span class="n">5</span><div>Paste it here.</div></div>
+    <div class="field" style="margin-top:20px">
+      <input id="key" type="text" placeholder="Paste your key" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+    <button class="btn" data-act="testkey">Save and check it works</button>`;
+}
+
+/* ---- roll ---- */
+function viewRoll(){
+  if(!S.apiKey) return onboard();
+  const shows = Object.values(S.shows).filter(s => s.included && s.episodes);
+  if(!shows.length) return `<div class="empty">No shows in the mix yet.<br>Open Library and tick a few.</div>`;
+  if(S.lineup.length) return viewNowPlaying();
+
+  const n = pool().list.length;
+  return `
+    <div class="tally ${rolling?"live":""}" data-act="roll" role="button" tabindex="0">
+      ${rolling ? `<div class="reel" id="reel">…</div>` : `<div class="tally-word">Roll</div>`}
+    </div>
+    <p class="tally-sub">${rolling ? "" : n + " episode" + (n===1?"":"s") + " in the running"}</p>
+    <div class="runsel">${[1,3,5,10].map(r =>
+      `<button data-run="${r}" class="${S.settings.run===r?"on":""}">${r===1?"1":r}</button>`).join("")}</div>
+    <p class="note" style="text-align:center;margin-top:7px">episodes in a row, same show</p>
+    ${moodBar()}
+    ${S.queue.length ? `<p class="note" style="text-align:center;margin-top:16px">${S.queue.length} queued from History — those come first.</p>` : ""}`;
+}
+
+function allGenres(){
+  const g = {};
+  Object.values(S.shows).forEach(s => { if(s.included) (s.genres||[]).forEach(x => g[x] = 1); });
+  return Object.keys(g).sort();
+}
+
+function allProviders(){
+  const p = {};
+  Object.values(S.shows).forEach(s => { if(s.included) (s.providers||[]).forEach(x => p[x] = 1); });
+  return Object.keys(p).sort();
+}
+
+function moodBar(){
+  const F = S.filters;
+  const gs = allGenres(), ps = allProviders();
+  const on = F.maxRuntime || F.genre || F.provider || F.unwatchedOnly;
+  return `
+    <div class="mood">
+      <div class="moodrow">
+        ${[[0,"Any length"],[25,"Under 25m"],[45,"Under 45m"],[70,"Under 70m"]].map(([v,l]) =>
+          `<button data-rt="${v}" class="chip ${F.maxRuntime===v?"on":""}">${l}</button>`).join("")}
+      </div>
+      ${gs.length > 1 ? `<div class="moodrow">
+        <button data-gen="" class="chip ${!F.genre?"on":""}">All genres</button>
+        ${gs.map(g => `<button data-gen="${esc(g)}" class="chip ${F.genre===g?"on":""}">${esc(g)}</button>`).join("")}
+      </div>` : ""}
+      ${ps.length > 1 ? `<div class="moodrow">
+        <button data-prov="" class="chip ${!F.provider?"on":""}">Any service</button>
+        ${ps.map(x => `<button data-prov="${esc(x)}" class="chip ${F.provider===x?"on":""}">${esc(x)}</button>`).join("")}
+      </div>` : ""}
+      <div class="moodrow">
+        <button data-unw="1" class="chip ${F.unwatchedOnly?"on":""}">Never seen only</button>
+        ${on ? `<button data-clearf="1" class="chip clr">Clear filters</button>` : ""}
+      </div>
+    </div>`;
+}
+
+function viewNowPlaying(){
+  const cur = findEp(S.lineup[0]);
+  if(!cur){ S.lineup.shift(); save(); return viewRoll(); }
+  const {sh, ep} = cur;
+  const st = stat(epKey(sh.id, ep.s, ep.e));
+  const rest = S.lineup.slice(1);
+
+  let actions;
+  if(panel === "rate"){
+    actions = TIERS.map((t,i) => `
+      <button class="tier ${st.rating===i?"sel":""}" data-tier="${i}">
+        <span class="dot" style="background:${t.col}">${i+1}</span>
+        <span><span class="lbl">${t.lbl}</span><br><span class="hint">${t.hint}</span></span>
+      </button>`).join("") + `<button class="btn ghost sm" data-panel="">Back</button>`;
+  } else if(panel === "skip"){
+    actions = REASONS.map(r => `
+      <button class="tier" data-reason="${r.id}">
+        <span class="dot" style="background:var(--muted)"></span>
+        <span><span class="lbl">${r.lbl}</span><br><span class="hint">${r.hint}</span></span>
+      </button>`).join("") + `<button class="btn ghost sm" data-panel="">Back</button>`;
+  } else {
+    actions = `
+      <button class="btn" data-panel="rate">Finished it — rate</button>
+      <div class="btn-row">
+        <button class="btn ghost sm" data-panel="skip">Skip this one</button>
+        <button class="btn ghost sm" data-act="clearline">End the run</button>
+      </div>`;
+  }
+
+  return `
+    <div class="slug" style="margin:2vh 0 0">${rest.length ? "Now playing · 1 of " + S.lineup.length : "Now playing"}${
+      (S.filters.maxRuntime||S.filters.genre||S.filters.provider||S.filters.unwatchedOnly) ? " · filtered" : ""}</div>
+    <div class="card" style="margin-top:8px">
+      <div class="slug">${code(ep.s, ep.e)}</div>
+      <h1 class="ep-show">${esc(sh.name)}</h1>
+      <p class="ep-title">${esc(ep.n)}</p>
+      ${ep.o ? `<p class="ep-blurb">${esc(ep.o)}…</p>` : ""}
+      ${sh.providers && sh.providers.length ? `<p class="prov">Streaming on <b>${sh.providers.map(esc).join(", ")}</b></p>` : ""}
+      <div class="meta">
+        <span>TMDb <b>${ep.r ? ep.r.toFixed(1) : "—"}</b></span>
+        <span>Aired <b>${ep.d ? ep.d.slice(0,4) : "—"}</b></span>
+        ${ep.t ? `<span>Runs <b>${ep.t}m</b></span>` : ""}
+        <span>Watched <b>${st.watched}×</b></span>
+        ${(sh.favSeasons||[]).includes(ep.s) ? `<span style="color:var(--signal)">Favourite season</span>` : ""}
+      </div>
+    </div>
+    ${actions}
+    ${rest.length ? `<div class="sec">Up next</div>` + rest.map((r,i) => {
+      const f = findEp(r);
+      return f ? `<div class="upnext"><span class="n">${i+2}</span><span class="t">${esc(f.sh.name)}<small>${code(f.ep.s,f.ep.e)} · ${esc(f.ep.n)}</small></span></div>` : "";
+    }).join("") : ""}`;
+}
+
+/* ---- history ---- */
+function viewHistory(){
+  const sub = `<div class="subtabs">
+      <button data-hist="watched" class="${histSub==="watched"?"on":""}">Watched</button>
+      <button data-hist="skipped" class="${histSub==="skipped"?"on":""}">Skipped${S.skipped.length?" ("+S.skipped.length+")":""}</button>
+      <button data-hist="queue" class="${histSub==="queue"?"on":""}">Queue${S.queue.length?" ("+S.queue.length+")":""}</button>
+      <button data-hist="stats" class="${histSub==="stats"?"on":""}">Stats</button>
+    </div>`;
+
+  if(histSub === "stats") return sub + viewStats();
+  if(histSub === "queue") return sub + viewQueue();
+
+  if(histSub === "skipped"){
+    if(!S.skipped.length) return sub + `<div class="empty">Nothing skipped yet.<br>Skipping during a roll files it here.</div>`;
+    return sub + S.skipped.map(x => {
+      const f = findEp(x); if(!f) return "";
+      const r = REASONS.find(z => z.id === x.reason);
+      const queued = S.queue.some(q => same(q, x));
+      return `<div class="row">
+        <div class="row-mid">
+          <div class="row-name">${esc(f.sh.name)}</div>
+          <div class="row-sub">${code(x.s,x.e)} · ${esc(f.ep.n)}</div>
+          <div class="row-sub" style="color:var(--live)">${r ? r.lbl : "Skipped"} · ${ago(x.at)}</div>
+        </div>
+        <div class="row-acts">
+          <button class="iconbtn ${queued?"on":""}" data-queue="${epKey(x.id,x.s,x.e)}" aria-label="Queue for next roll">${queued?I.tick:I.plus}</button>
+        </div>
+      </div>`;
+    }).join("") + `<p class="note" style="margin-top:16px">Tap + to put an episode at the front of the next roll. Skipped episodes are otherwise left out of random picks.</p>`;
+  }
+
+  if(!S.history.length) return sub + `<div class="empty">Nothing watched yet.</div>`;
+  const cap = histCap();
+  return sub + S.history.slice(0, 60).map((x,i) => {
+    const f = findEp(x); if(!f) return "";
+    const t = TIERS[x.rating] || null;
+    return `<div class="row">
+      <div class="row-mid">
+        <div class="row-name">${esc(f.sh.name)}</div>
+        <div class="row-sub">${code(x.s,x.e)} · ${esc(f.ep.n)}</div>
+        <div class="row-sub"><span style="color:${t?t.col:"var(--muted)"}">${t?t.lbl:"unrated"}</span> · ${ago(x.at)}${i < cap ? " · held back" : ""}</div>
+      </div>
+    </div>`;
+  }).join("") + `<p class="note" style="margin-top:16px">The most recent ${cap} are held back from random picks. Older ones can come round again.</p>`;
+}
+
+function viewQueue(){
+  const line = S.lineup.map((r,i) => {
+    const f = findEp(r); if(!f) return "";
+    return `<div class="upnext"><span class="n">${i+1}</span><span class="t">${esc(f.sh.name)}
+      <small>${code(f.ep.s,f.ep.e)} · ${esc(f.ep.n)}${f.ep.t ? " · " + f.ep.t + "m" : ""}</small></span></div>`;
+  }).join("");
+
+  const q = S.queue.map((r,i) => {
+    const f = findEp(r); if(!f) return "";
+    return `<div class="row">
+      <div class="row-mid">
+        <div class="row-name">${esc(f.sh.name)}</div>
+        <div class="row-sub">${code(r.s,r.e)} · ${esc(f.ep.n)}${f.ep.t ? " · " + f.ep.t + "m" : ""}</div>
+      </div>
+      <div class="row-acts">
+        <button class="iconbtn" data-qup="${i}" aria-label="Move up" ${i===0?'style="opacity:.25"':""}>${I.up}</button>
+        <button class="iconbtn ban" data-qdel="${i}" aria-label="Remove">${I.x}</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  if(!line && !q) return `<div class="empty">Nothing lined up.<br>Roll something, or queue an episode from a show's season list or the Skipped tab.</div>`;
+
+  return `
+    ${line ? `<div class="sec">Playing now — ${S.lineup.length} in a row</div>${line}
+      <button class="btn ghost sm" data-act="clearline" style="margin-top:12px">End the run</button>` : ""}
+    ${q ? `<div class="sec">Queued next</div>${q}
+      <button class="btn ghost sm danger" data-act="clearqueue" style="margin-top:12px">Empty the queue</button>
+      <p class="note" style="margin-top:12px">Queued episodes are used before any random pick, in this order.</p>`
+      : `<p class="note" style="margin-top:16px">Nothing manually queued. Add episodes from a show's season list, or from Skipped.</p>`}`;
+}
+
+function viewStats(){
+  let total = 0, mins = 0, avail = 0, seen = 0;
+  const perShow = {}, dist = [0,0,0,0,0];
+  for(const id in S.shows){
+    const sh = S.shows[id];
+    if(!sh.episodes) continue;
+    const live = sh.episodes.filter(e => !(sh.banSeasons||[]).includes(e.s));
+    if(sh.included) avail += live.length;
+    let sw = 0;
+    for(const ep of live){
+      const st = stat(epKey(id, ep.s, ep.e));
+      if(st.watched > 0 && sh.included) seen++;
+      total += st.watched;
+      mins += st.watched * (ep.t || 0);
+      sw += st.watched;
+      if(st.rating != null) dist[st.rating]++;
+    }
+    if(sw) perShow[sh.name] = sw;
+  }
+  const top = Object.entries(perShow).sort((a,b) => b[1]-a[1]).slice(0,6);
+  const maxN = top.length ? top[0][1] : 1;
+  const rated = dist.reduce((a,b)=>a+b,0);
+  const hrs = mins >= 60 ? (mins/60).toFixed(1) + "h" : mins + "m";
+  const pct = avail ? Math.round(seen/avail*100) : 0;
+
+  return `
+    <div class="statgrid">
+      <div class="stat"><div class="v">${total}</div><div class="l">episodes watched</div></div>
+      <div class="stat"><div class="v">${mins ? hrs : "—"}</div><div class="l">time watched</div></div>
+      <div class="stat"><div class="v">${pct}%</div><div class="l">of your mix seen</div></div>
+      <div class="stat"><div class="v">${rated}</div><div class="l">episodes rated</div></div>
+    </div>
+    ${!mins && total ? `<p class="note" style="margin-bottom:18px">Runtime is missing for older entries — use Refresh episode data in Settings to fill it in.</p>` : ""}
+    ${top.length ? `<div class="sec">Most watched</div>` + top.map(([n,c]) => `
+      <div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;font-size:14px">
+        <span>${esc(n)}</span><span class="note">${c}</span></div>
+        <div class="bar"><span style="width:${Math.round(c/maxN*100)}%;background:var(--signal)"></span></div></div>`).join("") : ""}
+    ${rated ? `<div class="sec">How you rate</div>` + TIERS.map((t,i) => `
+      <div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;font-size:14px">
+        <span>${t.lbl}</span><span class="note">${dist[i]}</span></div>
+        <div class="bar"><span style="width:${Math.round(dist[i]/rated*100)}%;background:${t.col}"></span></div></div>`).join("") : ""}
+    ${!total ? `<div class="empty">Watch a few episodes and this fills in.</div>` : ""}`;
+}
+
+/* ---- library ---- */
+function viewLibrary(){
+  const mine = Object.values(S.shows).sort((a,b) =>
+    ((b.favourite?2:0)+(b.included?1:0)) - ((a.favourite?2:0)+(a.included?1:0)) || a.name.localeCompare(b.name));
+  const listed = new Set(mine.map(s => s.id));
+  const browse = (searchResults || S.cache.top || []).filter(s => !listed.has(s.id));
+  return `
+    <div class="searchwrap">${I.find}
+      <input id="q" type="search" placeholder="Search every show" value="${esc(query)}" autocapitalize="words" enterkeyhint="search">
+      ${query ? `<button class="clearq" data-clearq="1" aria-label="Clear search">${I.x}</button>` : ""}
+    </div>
+    ${suggestBar()}
+    ${busy ? `<p class="note" style="text-align:center">Loading…</p>` : ""}
+    ${mine.length && !query ? `<div class="sec">Your shows</div>` + mine.map(rowMine).join("") : ""}
+    ${browse.length ? `<div class="sec">${query ? "Search results" : "Top rated on TMDb"}</div>` + browse.map(rowNew).join("") : ""}
+    ${!mine.length && !browse.length && !busy ? `<div class="empty">${S.apiKey ? "Search for a show to get started." : "Add your TMDb key in Settings first."}</div>` : ""}`;
+}
+function suggestBar(){
+  if(!query.trim() || !searchResults || !searchResults.length) return "";
+  const top = searchResults.slice(0,3).filter(x => x.name.toLowerCase() !== query.toLowerCase().trim());
+  if(!top.length) return "";
+  return `<div class="moodrow" style="justify-content:flex-start;margin:-4px 0 12px">
+    ${top.map(x => `<button class="chip" data-sugg="${esc(x.name)}">${esc(x.name)}${x.year ? " · " + x.year : ""}</button>`).join("")}
+  </div>`;
+}
+
+function rowMine(s){
+  const eps = s.episodes ? s.episodes.length : 0;
+  const ban = (s.banSeasons||[]).length;
+  return `<div class="row">
+    ${s.poster ? `<img class="poster" src="${IMG+s.poster}" alt="">` : `<div class="poster"></div>`}
+    <button class="row-mid" data-open="${s.id}">
+      <div class="row-name">${esc(s.name)}</div>
+      <div class="row-sub">${s.loading ? (s.prog || "Downloading episodes…")
+        : (s.year||"—") + " · " + (eps ? eps + " episodes" : "not loaded")
+          + (s.included ? " · in the mix" : "") + (ban ? " · " + ban + " blocked" : "")}</div>
+    </button>
+    <div class="row-acts">
+      <button class="iconbtn ${s.favourite?"on":""}" data-fav="${s.id}" aria-label="Favourite">${s.favourite?I.starF:I.star}</button>
+      ${s.loading ? `<span class="iconbtn"><span class="spin"></span></span>`
+        : `<button class="iconbtn ${s.included?"inc":""}" data-inc="${s.id}" aria-label="Include in rolls">${s.included?I.tick:I.plus}</button>`}
+    </div>
+  </div>`;
+}
+function rowNew(s){
+  return `<div class="row">
+    ${s.poster ? `<img class="poster" src="${IMG+s.poster}" alt="">` : `<div class="poster"></div>`}
+    <div class="row-mid"><div class="row-name">${esc(s.name)}</div>
+      <div class="row-sub">${s.year||"—"} · ${s.vote ? s.vote.toFixed(1) : "—"}${s.votes ? " (" + (s.votes >= 1000 ? (s.votes/1000).toFixed(1) + "k" : s.votes) + " ratings)" : ""}</div></div>
+    <div class="row-acts"><button class="iconbtn" data-add="${s.id}" aria-label="Add">${I.plus}</button></div>
+  </div>`;
+}
+
+/* ---- show detail ---- */
+function viewShow(){
+  const sh = S.shows[detail];
+  if(!sh) return viewLibrary();
+  const bySeason = {};
+  for(const ep of (sh.episodes||[])) (bySeason[ep.s] = bySeason[ep.s] || []).push(ep);
+  const nums = Object.keys(bySeason).map(Number).sort((a,b) => a-b);
+
+  return `
+    <button class="back" data-back="1">${I.back} Library</button>
+    <h1 class="ep-show" style="font-size:28px">${esc(sh.name)}</h1>
+    <p class="note" style="margin:2px 0 4px">${sh.year||"—"} · ${(sh.episodes||[]).length} episodes · ${sh.included?"in the mix":"not in the mix"}</p>
+    ${sh.providers && sh.providers.length
+      ? `<p class="prov" style="margin-bottom:16px">Streaming on <b>${sh.providers.map(esc).join(", ")}</b></p>`
+      : `<p class="note" style="margin-bottom:16px">No ${esc(S.region)} streaming info.</p>`}
+    ${nums.map(n => {
+      const eps = bySeason[n].sort((a,b) => a.e - b.e);
+      const fav = (sh.favSeasons||[]).includes(n);
+      const ban = (sh.banSeasons||[]).includes(n);
+      const open = openSeason === n;
+      return `<div class="season ${open?"open":""} ${ban?"blocked":""}">
+        <div class="season-hd">
+          <button class="iconbtn ${fav?"on":""}" data-favseason="${n}" aria-label="Favourite season ${n}">${fav?I.starF:I.star}</button>
+          <button class="iconbtn ${ban?"ban":""}" data-banseason="${n}" aria-label="Block season ${n}">${I.ban}</button>
+          <button class="nm" data-season="${n}">Season ${n}<div class="ct">${eps.length} episodes${ban?" · blocked":""}</div></button>
+          <button data-season="${n}" aria-label="Expand">${I.chev}</button>
+        </div>
+        <div class="eplist">${eps.map(ep => {
+          const k = epKey(sh.id, ep.s, ep.e);
+          const st = stat(k);
+          const isOpen = openEp === k;
+          return `<button class="eprow" data-ep="${k}">
+              <span class="epnum">${code(ep.s,ep.e)}</span>
+              <span class="epnm">${esc(ep.n)}</span>
+              <span class="epnum" style="width:auto;text-align:right;color:${st.rating!=null?TIERS[st.rating].col:"var(--muted)"}">${st.rating!=null?"●":(ep.r?ep.r.toFixed(1):"—")}</span>
+            </button>
+            <div class="epstat ${isOpen?"open":""}">
+              <div class="line"><span>Watched ${st.watched}×</span><span>Last ${ago(st.last)}</span><span>TMDb ${ep.r?ep.r.toFixed(1):"—"}</span></div>
+              <div class="dots">
+                ${TIERS.map((t,i) => `<button data-setrate="${k}|${i}" class="${st.rating===i?"on":""}" aria-label="${t.lbl}" title="${t.lbl}"><span style="background:${t.col}">${i+1}</span></button>`).join("")}
+                <button class="clr" data-setrate="${k}|-1">clear</button>
+              </div>
+              <div class="line" style="color:${st.rating!=null?TIERS[st.rating].col:"var(--muted)"}">${st.rating!=null?TIERS[st.rating].lbl:"tap a dot to rate"}</div>
+              <button class="chip" data-addq="${k}" style="margin-top:8px">${S.queue.some(z => same(z,{id:sh.id,s:ep.s,e:ep.e})) ? "✓ in the queue" : "+ Add to queue"}</button>
+            </div>`;
+        }).join("")}</div>
+      </div>`;
+    }).join("")}
+    ${!nums.length ? `<p class="note">Episodes haven't been downloaded yet.</p>` : ""}
+    <button class="btn ghost danger" data-remove="${sh.id}" style="margin:26px 0 8px">Remove ${esc(sh.name)} from library</button>
+    <p class="note">Your ratings and watch counts for this show are deleted too.</p>`;
+}
+
+/* ---- settings ---- */
+function viewSettings(){
+  const n = Object.values(S.shows).filter(s => s.included).length;
+  return `
+    <h1 class="ep-show" style="font-size:28px;margin-bottom:18px">Settings</h1>
+    <div class="field">
+      <label for="key">TMDb API key (v3 auth)</label>
+      <input id="key" type="text" value="${esc(S.apiKey)}" placeholder="Paste your key" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="region">Streaming region</label>
+      <select id="region">${REGIONS.map(r => `<option value="${r}" ${S.region===r?"selected":""}>${r}</option>`).join("")}</select>
+    </div>
+    <div class="field">
+      <label>Profiles — separate libraries and ratings</label>
+      ${P.names.map(n => `<div class="pro">
+        <span class="nm">${esc(n)}</span>
+        ${n === P.active ? `<span class="on">active</span>`
+          : `<button class="chip" data-switch="${esc(n)}">Switch</button>
+             <button class="chip clr" data-delprof="${esc(n)}">Delete</button>`}
+      </div>`).join("")}
+      <div class="btn-row">
+        <button class="btn ghost sm" data-act="newprof">New, empty</button>
+        <button class="btn ghost sm" data-act="copyprof">Copy this one</button>
+      </div>
+      <p class="note" style="margin-top:8px">Each profile keeps its own shows, ratings and history. Your key and region carry over.</p>
+    </div>
+
+    <div class="field">
+      <label>Quick presets</label>
+      <div class="btn-row">
+        <button class="btn ghost sm" data-preset="comfort">Comfort</button>
+        <button class="btn ghost sm" data-preset="balanced">Balanced</button>
+        <button class="btn ghost sm" data-preset="explore">Explore</button>
+      </div>
+      <p class="note" style="margin-top:8px">Comfort lets favourites come back around. Explore pushes you toward episodes you've never seen.</p>
+    </div>
+    <div class="field">
+      <label>How much episode ratings matter — <b id="kv">${S.settings.k.toFixed(1)}</b></label>
+      <input id="k" type="range" min="0" max="8" step="0.5" value="${S.settings.k}">
+    </div>
+    <div class="field">
+      <label>How ${S.settings.rewatch ? "strongly to prefer rewatches" : "hard to avoid repeats"} — <b id="pv">${S.settings.p.toFixed(1)}</b></label>
+      <input id="p" type="range" min="0" max="3" step="0.1" value="${S.settings.p}">
+    </div>
+    <div class="field">
+      <label>Behaviour</label>
+      <button class="btn ghost sm" data-toggle="fair" style="text-align:left;padding:13px 15px">
+        ${S.settings.fair ? "✓" : "○"} &nbsp;Give every show an equal shot
+        <div class="note" style="margin-top:3px">Off, a 700-episode show crowds out a 12-episode one.</div>
+      </button>
+      <button class="btn ghost sm" data-toggle="rewatch" style="text-align:left;padding:13px 15px;margin-top:9px">
+        ${S.settings.rewatch ? "✓" : "○"} &nbsp;Prefer things I've already seen
+        <div class="note" style="margin-top:3px">Flips the repeat slider around, for comfort viewing.</div>
+      </button>
+    </div>
+    <p class="note" style="margin:26px 0 10px">${n} show${n===1?"":"s"} in the mix · ${S.history.length} watched · ${S.skipped.length} skipped · ${S.queue.length} queued</p>
+    <div class="btn-row">
+      <button class="btn ghost sm" data-act="export">Export backup</button>
+      <button class="btn ghost sm" data-act="import">Restore</button>
+    </div>
+    <button class="btn ghost sm" data-act="testkey" style="margin-top:10px">Test connection</button>
+    <button class="btn ghost sm" data-act="refreshprov" style="margin-top:10px">Refresh streaming info</button>
+    <button class="btn ghost sm" data-act="refreshdata" style="margin-top:10px">Refresh episode data</button>
+    <button class="btn ghost sm" data-act="clearhist" style="margin-top:10px">Clear watch history</button>
+    <button class="btn ghost sm danger" data-act="clearskip" style="margin-top:10px">Clear skipped list</button>`;
+}
+
+/* ============ events ============ */
+function wire(){
+  document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => go(b.dataset.tab));
+  document.querySelectorAll("[data-act]").forEach(b => {
+    b.onclick = () => act(b.dataset.act);
+    if(b.tagName !== "BUTTON") b.onkeydown = e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); act(b.dataset.act); } };
+  });
+  document.querySelectorAll("[data-run]").forEach(b => b.onclick = () => { S.settings.run = +b.dataset.run; save(); render(); });
+  document.querySelectorAll("[data-panel]").forEach(b => b.onclick = () => { panel = b.dataset.panel || null; render(); });
+  document.querySelectorAll("[data-tier]").forEach(b => b.onclick = () => advance("rate", +b.dataset.tier));
+  document.querySelectorAll("[data-reason]").forEach(b => b.onclick = () => advance("skip", b.dataset.reason));
+  document.querySelectorAll("[data-hist]").forEach(b => b.onclick = () => { histSub = b.dataset.hist; render(); window.scrollTo(0,0); });
+  document.querySelectorAll("[data-queue]").forEach(b => b.onclick = () => {
+    const p = b.dataset.queue.split(":");
+    const ref = {id:p[0], s:+p[1], e:+p[2]};
+    const i = S.queue.findIndex(q => same(q, ref));
+    if(i >= 0){ S.queue.splice(i,1); toast("Removed from queue."); }
+    else { S.queue.push(ref); toast("Queued — it comes up next roll."); }
+    save(); render();
+  });
+  document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => { detail = b.dataset.open; openSeason = null; openEp = null; render(); window.scrollTo(0,0); });
+  document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => { detail = null; render(); });
+  document.querySelectorAll("[data-fav]").forEach(b => b.onclick = () => { const s = S.shows[b.dataset.fav]; s.favourite = !s.favourite; save(); render(); });
+  document.querySelectorAll("[data-inc]").forEach(b => b.onclick = () => include(b.dataset.inc));
+  document.querySelectorAll("[data-add]").forEach(b => b.onclick = () => addShow(b.dataset.add));
+  document.querySelectorAll("[data-season]").forEach(b => b.onclick = () => { const n = +b.dataset.season; openSeason = openSeason === n ? null : n; render(); });
+  document.querySelectorAll("[data-favseason]").forEach(b => b.onclick = () => toggleSeason("favSeasons", +b.dataset.favseason));
+  document.querySelectorAll("[data-banseason]").forEach(b => b.onclick = () => toggleSeason("banSeasons", +b.dataset.banseason));
+  document.querySelectorAll("[data-ep]").forEach(b => b.onclick = () => { openEp = openEp === b.dataset.ep ? null : b.dataset.ep; render(); });
+  document.querySelectorAll("[data-setrate]").forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    const parts = b.dataset.setrate.split("|");
+    const k = parts[0], tier = +parts[1];
+    const st = stat(k);
+    S.stats[k] = {rating: tier < 0 ? null : tier, watched: st.watched, last: st.last};
+    save(); render();
+  });
+  document.querySelectorAll("[data-remove]").forEach(b => b.onclick = () => {
+    const sh = S.shows[b.dataset.remove];
+    if(!sh || !confirm("Remove " + sh.name + " and its ratings?")) return;
+    const pre = sh.id + ":";
+    for(const k in S.stats) if(k.indexOf(pre) === 0) delete S.stats[k];
+    ["history","skipped","queue","lineup"].forEach(k => { S[k] = S[k].filter(x => String(x.id) !== sh.id); });
+    delete S.shows[sh.id];
+    detail = null; save(); render(); toast("Removed.");
+  });
+  document.querySelectorAll("[data-preset]").forEach(b => b.onclick = () => {
+    const v = {comfort:[2,0.3], balanced:[3,1.2], explore:[3.5,2.2]}[b.dataset.preset];
+    S.settings.k = v[0]; S.settings.p = v[1]; save(); render(); toast("Set to " + b.dataset.preset + ".");
+  });
+
+  document.querySelectorAll("[data-rt]").forEach(b => b.onclick = () => { S.filters.maxRuntime = +b.dataset.rt; save(); render(); });
+  document.querySelectorAll("[data-gen]").forEach(b => b.onclick = () => { S.filters.genre = b.dataset.gen; save(); render(); });
+  document.querySelectorAll("[data-unw]").forEach(b => b.onclick = () => { S.filters.unwatchedOnly = !S.filters.unwatchedOnly; save(); render(); });
+  document.querySelectorAll("[data-prov]").forEach(b => b.onclick = () => { S.filters.provider = b.dataset.prov; save(); render(); });
+  document.querySelectorAll("[data-clearf]").forEach(b => b.onclick = () => { S.filters = {maxRuntime:0, genre:"", provider:"", unwatchedOnly:false}; save(); render(); });
+  document.querySelectorAll("[data-toggle]").forEach(b => b.onclick = () => { S.settings[b.dataset.toggle] = !S.settings[b.dataset.toggle]; save(); render(); });
+  document.querySelectorAll("[data-switch]").forEach(b => b.onclick = () => switchProfile(b.dataset.switch));
+  document.querySelectorAll("[data-delprof]").forEach(b => b.onclick = () => deleteProfile(b.dataset.delprof));
+
+  document.querySelectorAll("[data-addq]").forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    const pr = b.dataset.addq.split(":");
+    const ref = {id:pr[0], s:+pr[1], e:+pr[2]};
+    const i = S.queue.findIndex(x => same(x, ref));
+    if(i >= 0){ S.queue.splice(i,1); toast("Removed from queue."); }
+    else { S.queue.push(ref); toast("Queued."); }
+    save(); render();
+  });
+  document.querySelectorAll("[data-qdel]").forEach(b => b.onclick = () => { S.queue.splice(+b.dataset.qdel,1); save(); render(); });
+  document.querySelectorAll("[data-qup]").forEach(b => b.onclick = () => {
+    const i = +b.dataset.qup; if(i < 1) return;
+    const t = S.queue[i-1]; S.queue[i-1] = S.queue[i]; S.queue[i] = t; save(); render();
+  });
+  document.querySelectorAll("[data-clearq]").forEach(b => b.onclick = () => {
+    query = ""; searchResults = null; render(); loadTop();
+  });
+  document.querySelectorAll("[data-sugg]").forEach(b => b.onclick = () => {
+    query = b.dataset.sugg; render(); search();
+  });
+
+  const q = $("#q");
+  if(q){
+    q.oninput = () => { query = q.value; clearTimeout(q._t); q._t = setTimeout(search, 420); };
+    q.onkeydown = e => { if(e.key === "Enter"){ e.preventDefault(); q.blur(); clearTimeout(q._t); search(); } };
+  }
+  const key = $("#key");
+  if(key) key.onchange = () => { S.apiKey = key.value.trim(); S.cache.top = null; save(); toast("Key saved."); };
+  const reg = $("#region");
+  if(reg) reg.onchange = () => { S.region = reg.value; save(); refreshProviders(true); };
+  const k = $("#k");
+  if(k) k.oninput = () => { S.settings.k = +k.value; $("#kv").textContent = S.settings.k.toFixed(1); save(); };
+  const p = $("#p");
+  if(p) p.oninput = () => { S.settings.p = +p.value; $("#pv").textContent = S.settings.p.toFixed(1); save(); };
+}
+
+function toggleSeason(field, n){
+  const sh = S.shows[detail]; if(!sh) return;
+  sh[field] = sh[field] || [];
+  const i = sh[field].indexOf(n);
+  if(i < 0){
+    sh[field].push(n);
+    if(field === "banSeasons"){
+      sh.favSeasons = (sh.favSeasons||[]).filter(x => x !== n);
+      S.lineup = S.lineup.filter(x => !(String(x.id) === sh.id && x.s === n));
+      S.queue  = S.queue.filter(x => !(String(x.id) === sh.id && x.s === n));
+    } else {
+      sh.banSeasons = (sh.banSeasons||[]).filter(x => x !== n);
+    }
+  } else sh[field].splice(i,1);
+  save(); render();
+}
+
+/* advance the lineup after rating or skipping */
+function advance(kind, val){
+  const ref = S.lineup[0]; if(!ref) return;
+  if(kind === "rate") markWatched(ref, val); else markSkipped(ref, val);
+  S.lineup.shift();
+  panel = null;
+  if(kind === "skip" && !S.lineup.length){
+    const more = buildRun(1);
+    if(more.length) S.lineup = more;
+  }
+  save(); render(); window.scrollTo(0,0);
+}
+
+function act(a){
+  if(a === "roll") doRoll();
+  if(a === "clearline"){ S.lineup = []; panel = null; save(); render(); }
+  if(a === "clearhist"){ S.history = []; save(); toast("Watch history cleared."); render(); }
+  if(a === "clearqueue"){ S.queue = []; save(); toast("Queue emptied."); render(); }
+  if(a === "clearskip"){ S.skipped = []; save(); toast("Skipped list cleared."); render(); }
+  if(a === "refreshprov") refreshProviders(true);
+  if(a === "refreshdata") refreshEpisodes();
+  if(a === "newprof"){ const n = prompt("Name this profile"); if(n) newProfile(n, false); return; }
+  if(a === "copyprof"){ const n = prompt("Name for the copy"); if(n) newProfile(n, true); return; }
+  if(a === "testkey"){
+    const f = $("#key");
+    if(f && f.value.trim()){ S.apiKey = f.value.trim(); S.cache.top = null; save(); }
+    if(!S.apiKey){ toast("Paste a key first."); return; }
+    toast("Checking…");
+    api("/tv/top_rated", {page:1})
+      .then(() => { toast("Connected. Open Library to pick shows."); go("library"); })
+      .catch(e => toast(e.message));
+    return;
+  }
+  if(a === "export"){
+    const b = new Blob([JSON.stringify(S)], {type:"application/json"});
+    const el = document.createElement("a");
+    el.href = URL.createObjectURL(b); el.download = "tonight-backup.json"; el.click();
+  }
+  if(a === "import"){
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = "application/json";
+    inp.onchange = () => {
+      const f = inp.files[0]; if(!f) return;
+      const rd = new FileReader();
+      rd.onload = () => { try{ S = sane(JSON.parse(rd.result)); save(); toast("Restored."); render(); }
+                          catch(e){ toast("That file couldn't be read."); } };
+      rd.readAsText(f);
+    };
+    inp.click();
+  }
+}
+
+async function doRoll(){
+  if(rolling) return;
+  const probe = pool();
+  if(!probe.list.length && !S.queue.length){ toast("Nothing to roll. Tick at least one show into the mix."); return; }
+  rolling = true; render();
+  const reel = $("#reel");
+  if(reel && probe.list.length && !matchMedia("(prefers-reduced-motion: reduce)").matches){
+    for(let i=0;i<7;i++){
+      const c = probe.list[Math.floor(Math.random() * probe.list.length)];
+      if(c) reel.textContent = c.sh.name + " · " + code(c.ep.s, c.ep.e);
+      await new Promise(r => setTimeout(r, 95 + i*22));
+    }
+  } else await new Promise(r => setTimeout(r, 180));
+  S.lineup = buildRun(S.settings.run);
+  rolling = false; panel = null;
+  save(); render(); window.scrollTo(0,0);
+}
+
+async function search(){
+  if(!S.apiKey || !query.trim()){ searchResults = null; render(); loadTop(); return; }
+  busy = true; render();
+  try{
+    const d = await api("/search/tv", {query});
+    const rows = (d.results||[]).map(mapShow);
+    rows.forEach((x,i) => { x._score = searchScore(x, query, i); });
+    rows.sort((a,b) => b._score - a._score);
+    searchResults = rows;
+  }
+  catch(e){ toast(e.message); }
+  busy = false; render();
+}
+const mapShow = r => ({id:String(r.id), name:r.name, year:(r.first_air_date||"").slice(0,4),
+  poster:r.poster_path, vote:r.vote_average, votes:r.vote_count || 0, pop:r.popularity || 0});
+
+/* TMDb's own top-rated list is raw average, so a show with 60 votes at 9.4
+   outranks Breaking Bad. Shrink toward the mean, weighted by vote count. */
+const SHOW_PRIOR = 6.9, SHOW_PRIOR_N = 800;
+function showScore(x){
+  const v = x.votes || 0;
+  return ((x.vote || 0) * v + SHOW_PRIOR * SHOW_PRIOR_N) / (v + SHOW_PRIOR_N);
+}
+/* Search wants the show you meant, not the best-rated near-match. */
+function searchScore(x, q, idx){
+  const n = (x.name||"").toLowerCase(), t = q.toLowerCase().trim();
+  let bonus = 1;
+  if(n === t) bonus = 6;
+  else if(n.indexOf(t) === 0) bonus = 3.2;
+  else if(n.indexOf(t) >= 0) bonus = 1.8;
+  return bonus * showScore(x) * Math.log10(10 + (x.votes||0)) / (1 + idx * 0.04);
+}
+
+async function loadTop(){
+  if(!S.apiKey || S.cache.top || busy) return;
+  busy = true; render();
+  try{
+    const pages = await Promise.all([1,2,3,4,5,6].map(p => api("/discover/tv", {
+      page:p, sort_by:"vote_average.desc", "vote_count.gte":400, include_adult:false
+    })));
+    const seen = {};
+    const all = pages.flatMap(d => (d.results||[]).map(mapShow)).filter(x => {
+      if(seen[x.id]) return false; seen[x.id] = 1; return true;
+    });
+    all.sort((a,b) => showScore(b) - showScore(a));
+    S.cache.top = all.slice(0,100);
+    S.cache.topAt = Date.now(); save();
+  }catch(e){ toast(e.message); }
+  busy = false; render();
+}
+
+async function addShow(id){
+  if(S.shows[id]) return;
+  const src = (searchResults || S.cache.top || []).find(s => s.id === id) || {id, name:"Untitled"};
+  S.shows[id] = {id, name:src.name, year:src.year, poster:src.poster, vote:src.vote,
+                 included:false, favourite:false, favSeasons:[], banSeasons:[], providers:null, episodes:null};
+  save(); render();
+  include(id);
+}
+
+async function include(id){
+  const sh = S.shows[id];
+  if(!sh || sh.loading) return;
+  if(sh.episodes){ sh.included = !sh.included; save(); render(); return; }
+  sh.loading = true; sh.prog = "Downloading episodes…"; render();
+  try{
+    const got = await pullEpisodes(id, (i,n) => {
+      sh.prog = "Season " + i + " of " + n + "…";
+      const el = document.querySelector('[data-open="' + id + '"] .row-sub');
+      if(el) el.textContent = sh.prog;
+    });
+    sh.genres = got.genres || [];
+    sh.episodes = got;
+    sh.providers = await pullProviders(id);
+    sh.loading = false; sh.included = true;
+    save(); render();
+    toast(sh.name + " added — " + sh.episodes.length + " episodes.");
+  }catch(e){
+    sh.loading = false; toast(e.message);
+    delete S.shows[id]; save(); render();
+  }
+}
+
+async function refreshEpisodes(){
+  const ids = Object.keys(S.shows).filter(id => S.shows[id].episodes);
+  if(!ids.length){ toast("No shows to refresh."); return; }
+  toast("Re-downloading episode data…");
+  for(const id of ids){
+    const sh = S.shows[id];
+    try{
+      const got = await pullEpisodes(id, (i,n) => { sh.prog = sh.name + " — season " + i + " of " + n; });
+      sh.genres = got.genres || [];
+      sh.episodes = got;
+    }catch(e){ toast(e.message); break; }
+  }
+  save(); render(); toast("Episode data refreshed.");
+}
+
+async function refreshProviders(loud){
+  const ids = Object.keys(S.shows);
+  if(!ids.length) return;
+  if(loud) toast("Checking " + S.region + " streaming…");
+  for(const id of ids) S.shows[id].providers = await pullProviders(id);
+  save(); render();
+  if(loud) toast("Streaming info updated for " + S.region + ".");
+}
+
+/* ============ homescreen icon ============ */
+(function(){
+  const c = document.createElement("canvas"); c.width = c.height = 180;
+  const x = c.getContext("2d");
+  x.fillStyle = "#0F1119"; x.fillRect(0,0,180,180);
+  x.strokeStyle = "#2B3040"; x.lineWidth = 4;
+  x.beginPath(); x.arc(90,90,60,0,7); x.stroke();
+  x.fillStyle = "#F0B429";
+  [[68,68],[112,112],[90,90]].forEach(function(pt){ x.beginPath(); x.arc(pt[0],pt[1],9,0,7); x.fill(); });
+  const l = document.createElement("link");
+  l.rel = "apple-touch-icon"; l.href = c.toDataURL("image/png");
+  document.head.appendChild(l);
+})();
+
+render();
+document.addEventListener("visibilitychange", function(){ if(document.hidden) save(); });
+</script>
+</body>
+</html>
